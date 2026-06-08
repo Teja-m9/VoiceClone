@@ -2,6 +2,7 @@
 here — no os.getenv/os.environ anywhere else in the codebase."""
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,11 +12,19 @@ class Config(BaseSettings):
     supabase_service_key: str = ""
     supabase_jwt_secret: str = ""
 
-    # AWS S3 (audio storage)
-    aws_access_key_id: str = ""
-    aws_secret_access_key: str = ""
-    aws_region: str = "ap-south-1"
-    s3_bucket: str = ""
+    # AWS S3 (audio storage) — accepts either AWS_* or S3_* env naming.
+    aws_access_key_id: str = Field(
+        default="", validation_alias=AliasChoices("AWS_ACCESS_KEY_ID", "S3_ACCESS_KEY")
+    )
+    aws_secret_access_key: str = Field(
+        default="", validation_alias=AliasChoices("AWS_SECRET_ACCESS_KEY", "S3_SECRET_KEY")
+    )
+    aws_region: str = Field(
+        default="ap-south-1", validation_alias=AliasChoices("AWS_REGION", "S3_REGION")
+    )
+    s3_bucket: str = Field(
+        default="", validation_alias=AliasChoices("S3_BUCKET", "AWS_S3_BUCKET")
+    )
     s3_endpoint_url: str | None = None  # blank for AWS; set for S3-compatible providers
 
     # Runpod

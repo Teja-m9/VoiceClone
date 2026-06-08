@@ -15,25 +15,75 @@ import Animated, {
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withDelay,
   cancelAnimation,
+  interpolate,
+  Easing,
+  ZoomIn,
+  type SharedValue,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Screen, Text, GradientButton, TextField } from '@/components';
 import { supabase } from '@/lib/supabase';
 import { env } from '@/lib/env';
 import { useAuth } from '@/providers/AuthProvider';
-import { palette, spacing } from '@/theme';
+import { gradients, palette, spacing } from '@/theme';
 
 const MAX_SECONDS = 60;
 const MIN_SECONDS = 8;
-/** dBFS peak below this = effectively silence / unusably quiet → ask for a re-record. */
 const MIN_PEAK_DBFS = -38;
+const WAVE_BARS = 13;
 
 type Phase = 'idle' | 'recording' | 'recorded' | 'uploading';
+
+/** One bar of the live waveform — height reacts to the mic level + its own wobble. */
+function WaveBar({ level, index, active }: { level: SharedValue<number>; index: number; active: boolean }) {
+  const wobble = useSharedValue(0);
+  useEffect(() => {
+    if (active) {
+      wobble.value = withDelay(
+        index * 45,
+        withRepeat(withTiming(1, { duration: 520 + index * 40, easing: Easing.inOut(Easing.quad) }), -1, true),
+      );
+    } else {
+      cancelAnimation(wobble);
+      wobble.value = withTiming(0);
+    }
+  }, [active, index, wobble]);
+
+  const style = useAnimatedStyle(() => {
+    const amp = interpolate(level.value, [0, 1], [0.12, 1]);
+    const h = 6 + amp * (18 + 40 * wobble.value);
+    return { height: h };
+  });
+  return <Animated.View style={[styles.waveBar, style]} />;
+}
+
+/** Expanding ripple ring behind the mic button. */
+function Ripple({ active, delay }: { active: boolean; delay: number }) {
+  const r = useSharedValue(0);
+  useEffect(() => {
+    if (active) {
+      r.value = withDelay(
+        delay,
+        withRepeat(withTiming(1, { duration: 1900, easing: Easing.out(Easing.ease) }), -1, false),
+      );
+    } else {
+      cancelAnimation(r);
+      r.value = withTiming(0);
+    }
+  }, [active, delay, r]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(r.value, [0, 1], [1, 2.6]) }],
+    opacity: interpolate(r.value, [0, 1], [0.45, 0]),
+  }));
+  return <Animated.View style={[styles.ripple, style]} pointerEvents="none" />;
+}
 
 export default function RecordScreen() {
   const router = useRouter();
   const { session } = useAuth();
-  // Metering enabled so we can gate on how loud/clear the recording actually was.
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -44,16 +94,19 @@ export default function RecordScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const meter = useRef<ReturnType<typeof setInterval> | null>(null);
   const peakDbfs = useRef<number>(-160);
-  const ring = useSharedValue(1);
-  const ringStyle = useAnimatedStyle(() => ({ transform: [{ scale: ring.value }] }));
+  const level = useSharedValue(0); // 0..1 live mic level → drives the waveform
+  const recording = phase === 'recording';
 
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-      cancelAnimation(ring);
-    };
-  }, [ring]);
+  const clearTimers = () => {
+    if (timer.current) clearInterval(timer.current);
+    if (meter.current) clearInterval(meter.current);
+    timer.current = null;
+    meter.current = null;
+  };
+
+  useEffect(() => clearTimers, []);
 
   const startRecording = async () => {
     setError(null);
@@ -71,14 +124,9 @@ export default function RecordScreen() {
       peakDbfs.current = -160;
       setPhase('recording');
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      ring.value = withRepeat(withTiming(1.18, { duration: 700 }), -1, true);
 
+      // Seconds counter (auto-stops at MAX_SECONDS).
       timer.current = setInterval(() => {
-        // Track the loudest moment to judge audio quality after stopping.
-        const status = recorder.getStatus();
-        if (typeof status.metering === 'number') {
-          peakDbfs.current = Math.max(peakDbfs.current, status.metering);
-        }
         setSeconds((s) => {
           if (s + 1 >= MAX_SECONDS) {
             void stopRecording();
@@ -87,21 +135,29 @@ export default function RecordScreen() {
           return s + 1;
         });
       }, 1000);
+
+      // Fast metering poll → drives the live waveform + tracks peak for the quality gate.
+      meter.current = setInterval(() => {
+        const status = recorder.getStatus();
+        if (typeof status.metering === 'number') {
+          peakDbfs.current = Math.max(peakDbfs.current, status.metering);
+          const lv = Math.max(0, Math.min(1, (status.metering + 50) / 50));
+          level.value = withTiming(lv, { duration: 130 });
+        }
+      }, 150);
     } catch {
       setError('Could not start recording. Try again.');
     }
   };
 
   const stopRecording = async () => {
-    if (timer.current) clearInterval(timer.current);
-    cancelAnimation(ring);
-    ring.value = withTiming(1);
+    clearTimers();
+    level.value = withTiming(0);
     try {
       await recorder.stop();
       const recordedUri = recorder.uri ?? null;
       const finalSeconds = seconds;
 
-      // --- Quality gate: too short, or too quiet/unclear → require a re-record ---
       if (finalSeconds < MIN_SECONDS) {
         setUri(null);
         setPhase('idle');
@@ -112,7 +168,7 @@ export default function RecordScreen() {
       if (peakDbfs.current > -159 && peakDbfs.current < MIN_PEAK_DBFS) {
         setUri(null);
         setPhase('idle');
-        setError("That was too quiet or unclear. Find a quiet spot and record again.");
+        setError('That was too quiet or unclear. Find a quiet spot and record again.');
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         return;
       }
@@ -137,9 +193,6 @@ export default function RecordScreen() {
     try {
       const userId = session.user.id;
       const path = `${userId}/${Date.now()}.m4a`;
-
-      // Upload straight to Supabase Storage via the storage REST endpoint (binary, reliable
-      // on RN). RLS lets a user write only into their own folder.
       const res = await FileSystem.uploadAsync(
         `${env.supabaseUrl}/storage/v1/object/voices/${path}`,
         uri,
@@ -157,8 +210,6 @@ export default function RecordScreen() {
       if (res.status < 200 || res.status >= 300) {
         throw new Error('Upload failed — check the "voices" storage bucket exists.');
       }
-
-      // Record the voice profile (RLS: owner insert). Zero-shot → ready immediately.
       const { error: insertError } = await supabase.from('voice_profiles').insert({
         user_id: userId,
         name: name.trim() || 'My voice',
@@ -197,11 +248,7 @@ export default function RecordScreen() {
 
       <View style={styles.center}>
         <Text variant="h1" center>
-          {phase === 'recording'
-            ? 'Listening…'
-            : phase === 'recorded'
-              ? 'Sounds great'
-              : 'Read this aloud'}
+          {phase === 'recording' ? 'Listening…' : phase === 'recorded' ? 'Sounds great' : 'Read this aloud'}
         </Text>
         <Text variant="body" center style={{ marginTop: spacing.sm, paddingHorizontal: spacing.lg }}>
           {phase === 'recorded'
@@ -211,30 +258,42 @@ export default function RecordScreen() {
 
         {(phase === 'idle' || phase === 'recording') && (
           <View style={styles.ringWrap}>
-            <Animated.View style={[styles.ringGlow, ringStyle]} />
+            <Ripple active={recording} delay={0} />
+            <Ripple active={recording} delay={950} />
             <Pressable
-              onPress={phase === 'recording' ? stopRecording : startRecording}
-              style={[styles.recBtn, phase === 'recording' && styles.recBtnActive]}
+              onPress={recording ? stopRecording : startRecording}
+              style={[styles.recBtn, recording && styles.recBtnActive]}
               accessibilityRole="button"
-              accessibilityLabel={phase === 'recording' ? 'Stop recording' : 'Start recording'}
+              accessibilityLabel={recording ? 'Stop recording' : 'Start recording'}
             >
               <Ionicons
-                name={phase === 'recording' ? 'stop' : 'mic'}
+                name={recording ? 'stop' : 'mic'}
                 size={44}
-                color={phase === 'recording' ? palette.danger : palette.textInverse}
+                color={recording ? palette.danger : palette.textInverse}
               />
             </Pressable>
-            <Text variant="display" style={{ marginTop: spacing.xl }}>
+
+            {/* Live waveform */}
+            <View style={styles.wave}>
+              {Array.from({ length: WAVE_BARS }).map((_, i) => (
+                <WaveBar key={i} level={level} index={i} active={recording} />
+              ))}
+            </View>
+
+            <Text variant="display" style={{ marginTop: spacing.md }}>
               {seconds}s
             </Text>
-            <Text variant="caption">
-              {phase === 'recording' ? 'Tap to stop' : 'Tap to record (quiet room, 8–60s)'}
-            </Text>
+            <Text variant="caption">{recording ? 'Tap to stop' : 'Tap to record (quiet room, 8–60s)'}</Text>
           </View>
         )}
 
         {(phase === 'recorded' || phase === 'uploading') && (
           <View style={styles.review}>
+            <Animated.View entering={ZoomIn.duration(360)} style={styles.successWrap}>
+              <LinearGradient colors={gradients.success} style={styles.successCircle}>
+                <Ionicons name="checkmark" size={36} color={palette.textInverse} />
+              </LinearGradient>
+            </Animated.View>
             <TextField label="Voice name" value={name} onChangeText={setName} />
             <Pressable style={styles.consent} onPress={() => setConsent((c) => !c)}>
               <Ionicons
@@ -259,12 +318,7 @@ export default function RecordScreen() {
 
       {phase === 'recorded' || phase === 'uploading' ? (
         <View style={{ gap: spacing.md }}>
-          <GradientButton
-            label="Use this voice"
-            onPress={upload}
-            loading={phase === 'uploading'}
-            disabled={!consent}
-          />
+          <GradientButton label="Use this voice" onPress={upload} loading={phase === 'uploading'} disabled={!consent} />
           <GradientButton label="Re-record" variant="outline" onPress={reset} />
         </View>
       ) : null}
@@ -280,14 +334,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  ringWrap: { alignItems: 'center', marginTop: spacing.xxxl },
-  ringGlow: {
+  ringWrap: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.xxxl },
+  ripple: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(201,242,75,0.40)',
-    top: -16,
+    top: 0,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: palette.lime,
   },
   recBtn: {
     width: 128,
@@ -298,6 +352,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   recBtnActive: { backgroundColor: palette.surface, borderWidth: 2, borderColor: palette.danger },
+  wave: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    height: 64,
+    marginTop: spacing.xl,
+  },
+  waveBar: { width: 5, borderRadius: 3, backgroundColor: palette.violet },
   review: { width: '100%', gap: spacing.lg, marginTop: spacing.xl },
+  successWrap: { alignItems: 'center' },
+  successCircle: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   consent: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
 });

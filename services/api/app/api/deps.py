@@ -14,6 +14,7 @@ class Principal:
     """The authenticated caller, derived from a verified Supabase JWT."""
 
     user_id: str
+    email: str | None = None
 
 
 def _verify_token(token: str) -> Principal:
@@ -29,7 +30,7 @@ def _verify_token(token: str) -> Principal:
     sub = payload.get("sub")
     if not sub:
         raise UnauthorizedError("Token missing subject")
-    return Principal(user_id=sub)
+    return Principal(user_id=sub, email=payload.get("email"))
 
 
 async def current_principal(authorization: str = Header(default="")) -> Principal:

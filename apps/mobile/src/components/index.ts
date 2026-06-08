@@ -5,6 +5,7 @@ export { AnimatedBackground } from './AnimatedBackground';
 export { GradientButton } from './GradientButton';
 export { BentoCard } from './BentoCard';
 export { SongCard } from './SongCard';
+export { SongTile } from './SongTile';
 export { JobStatusBadge } from './JobStatusBadge';
 export { TextField } from './TextField';
 export { AuthSocial } from './AuthSocial';

@@ -43,6 +43,20 @@ class SupabaseClient:
         params = {k: f"eq.{v}" for k, v in filters.items()}
         await self._request("PATCH", f"/{table}", params=params, json=patch)
 
+    async def create_signed_url(self, bucket: str, path: str, expires_in: int) -> str | None:
+        """Create a time-limited signed URL for a private Storage object (e.g. a voice clip),
+        so the GPU worker can download it without credentials."""
+        async with httpx.AsyncClient(timeout=15) as client:
+            res = await client.post(
+                f"{config.supabase_url}/storage/v1/object/sign/{bucket}/{path}",
+                headers=self._headers,
+                json={"expiresIn": expires_in},
+            )
+            if res.status_code >= 300:
+                return None
+            signed = res.json().get("signedURL")
+            return f"{config.supabase_url}/storage/v1{signed}" if signed else None
+
     async def rpc(self, fn: str, args: dict[str, Any]) -> Any:
         """Call a Postgres function (e.g. reserve_quota / release_quota)."""
         async with httpx.AsyncClient(timeout=15) as client:

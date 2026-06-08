@@ -33,6 +33,7 @@ async def create_job(
         runpod=runpod,
         jiosaavn=jiosaavn,
         user_id=principal.user_id,
+        email=principal.email,
         payload=payload,
     )
 

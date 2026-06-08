@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Text, BentoCard, GradientButton, SongCard } from '@/components';
+import { Screen, Text, BentoCard, GradientButton, SongCard, SongTile } from '@/components';
 import { useVoiceProfiles } from '@/hooks/useVoiceProfiles';
 import { useProfile } from '@/hooks/useProfile';
 import { useSongSearch } from '@/hooks/useSongSearch';
@@ -157,9 +157,9 @@ export default function CreateScreen() {
           {loading ? (
             <ActivityIndicator color={palette.violet} style={{ marginTop: spacing.lg }} />
           ) : (
-            <View style={styles.list}>
-              {tracks.slice(0, 8).map((track, i) => (
-                <SongCard key={track.id} track={track} index={Math.min(i, 6)} onPress={pickTrack} />
+            <View style={styles.grid}>
+              {tracks.slice(0, 10).map((track, i) => (
+                <SongTile key={track.id} track={track} index={Math.min(i, 8)} onPress={pickTrack} />
               ))}
             </View>
           )}
@@ -216,5 +216,5 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   searchInput: { ...typography.body, color: palette.textPrimary, flex: 1, paddingVertical: 0 },
-  list: { gap: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.lg },
 });

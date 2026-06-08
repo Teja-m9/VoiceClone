@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { MOCK_MODE } from '@/lib/env';
 import { mockData } from '@/lib/mock';
+import { isAdminEmail } from '@/lib/admin';
 import { useAuth } from '@/providers/AuthProvider';
 import type { ProfileRow } from '@/types/db';
 
@@ -55,11 +56,13 @@ export function useProfile() {
     };
   }, [userId, refresh]);
 
-  const isPremium = profile?.plan === 'premium';
+  // Admins get unlimited, premium-level access regardless of plan.
+  const isAdmin = isAdminEmail(session?.user.email);
+  const isPremium = profile?.plan === 'premium' || isAdmin;
   const FREE_DAILY = 3;
   const quotaRemaining = isPremium
     ? Infinity
     : Math.max(0, FREE_DAILY - (profile?.quota_used ?? 0));
 
-  return { profile, loading, isPremium, quotaRemaining, refresh };
+  return { profile, loading, isPremium, isAdmin, quotaRemaining, refresh };
 }

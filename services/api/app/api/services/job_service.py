@@ -10,11 +10,13 @@ from app.client.jiosaavn_client import JioSaavnClient
 from app.client.runpod_client import RunpodClient
 from app.client.s3_client import S3Client
 from app.client.supabase_client import SupabaseClient
+from app.constants.admins import is_admin_email
 from app.constants.enums import JobStatus, NotifType, VoiceStatus
 from app.errors import (
     NotFoundError,
     QuotaExceededError,
     SongUnavailableError,
+    UpstreamError,
     VoiceNotReadyError,
 )
 from app.helpers.keys import output_audio_key
@@ -34,6 +36,7 @@ async def create_job(
     runpod: RunpodClient,
     jiosaavn: JioSaavnClient,
     user_id: str,
+    email: str | None = None,
     req: CreateJobRequest,
 ) -> JobResponse:
     # 1. Idempotency replay.
@@ -55,13 +58,16 @@ async def create_job(
     if not song_url:
         raise SongUnavailableError("Could not resolve the song stream")
 
-    # 4. Quota (premium => unlimited, remaining == -1).
-    quota = await quota_service.reserve(supabase, user_id)
-    if not quota.allowed:
-        raise QuotaExceededError(
-            "Daily free limit reached", details={"remaining": quota.remaining}
-        )
-    is_premium = quota.remaining == -1
+    # 4. Quota — admins bypass entirely; otherwise reserve (premium => unlimited, -1).
+    if is_admin_email(email):
+        is_premium = True
+    else:
+        quota = await quota_service.reserve(supabase, user_id)
+        if not quota.allowed:
+            raise QuotaExceededError(
+                "Daily free limit reached", details={"remaining": quota.remaining}
+            )
+        is_premium = quota.remaining == -1
 
     # 5. Insert the job row (queued).
     row = await supabase.insert(
@@ -78,13 +84,17 @@ async def create_job(
     )
     job_id = row["id"]
 
-    # 6. Presign IO + trigger Runpod.
+    # 6. Presign IO + trigger Runpod. Voice clips live in Supabase Storage ('voices');
+    #    generated covers go to S3.
     out_key = output_audio_key(user_id, job_id)
+    voice_url = await supabase.create_signed_url("voices", vp["ref_audio_key"], config.presign_get_ttl)
+    if not voice_url:
+        raise UpstreamError("Could not sign the voice reference")
     payload = build_clone_job_payload(
         job_id=job_id,
         watermark=not is_premium,
         preview=not is_premium,  # free → 30s preview, premium → full song
-        voice_ref_get_url=s3.presign_get(vp["ref_audio_key"], config.presign_get_ttl),
+        voice_ref_get_url=voice_url,
         song_stream_url=song_url,
         output_audio_put_url=s3.presign_put(out_key, "audio/mpeg", config.presign_get_ttl),
         output_audio_key=out_key,

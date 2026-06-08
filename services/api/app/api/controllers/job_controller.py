@@ -13,6 +13,7 @@ async def create(
     runpod: RunpodClient,
     jiosaavn: JioSaavnClient,
     user_id: str,
+    email: str | None,
     payload: CreateJobRequest,
 ) -> JobResponse:
     return await job_service.create_job(
@@ -21,6 +22,7 @@ async def create(
         runpod=runpod,
         jiosaavn=jiosaavn,
         user_id=user_id,
+        email=email,
         req=payload,
     )
 

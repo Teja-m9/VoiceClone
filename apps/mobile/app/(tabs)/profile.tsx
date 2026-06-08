@@ -110,19 +110,21 @@ export default function ProfileScreen() {
           <Text variant="body">No voices yet. Record one from the Create tab.</Text>
         </BentoCard>
       ) : (
-        profiles.map((vp, i) => (
-          <BentoCard key={vp.id} index={i + 2} style={{ marginBottom: spacing.md }}>
-            <View style={styles.voiceRow}>
-              <Ionicons name="mic-circle" size={28} color={palette.violet} />
-              <View style={{ flex: 1 }}>
+        <View style={styles.cardList}>
+          {profiles.map((vp, i) => (
+            <BentoCard key={vp.id} index={i + 2}>
+              <View style={styles.voiceRow}>
+                <Ionicons name="mic-circle" size={28} color={palette.violet} />
+                <View style={{ flex: 1 }}>
                 <Text variant="title">{vp.name}</Text>
                 <Text variant="caption">
                   {vp.status === 'ready' ? 'Ready to sing' : `Status: ${vp.status}`}
                 </Text>
               </View>
-            </View>
-          </BentoCard>
-        ))
+              </View>
+            </BentoCard>
+          ))}
+        </View>
       )}
 
       {/* Notifications */}
@@ -141,19 +143,21 @@ export default function ProfileScreen() {
           <Text variant="body">You're all caught up.</Text>
         </BentoCard>
       ) : (
-        notifications.slice(0, 8).map((n, i) => (
-          <Pressable key={n.id} onPress={() => !n.read_at && markRead(n.id)}>
-            <BentoCard index={i + 3} style={{ marginBottom: spacing.sm }}>
-              <View style={styles.notifRow}>
-                <View style={[styles.notifDot, { opacity: n.read_at ? 0 : 1 }]} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="title">{n.title}</Text>
-                  {!!n.body && <Text variant="caption">{n.body}</Text>}
+        <View style={styles.cardList}>
+          {notifications.slice(0, 8).map((n, i) => (
+            <Pressable key={n.id} onPress={() => !n.read_at && markRead(n.id)}>
+              <BentoCard index={i + 3}>
+                <View style={styles.notifRow}>
+                  <View style={[styles.notifDot, { opacity: n.read_at ? 0 : 1 }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text variant="title">{n.title}</Text>
+                    {!!n.body && <Text variant="caption">{n.body}</Text>}
+                  </View>
                 </View>
-              </View>
-            </BentoCard>
-          </Pressable>
-        ))
+              </BentoCard>
+            </Pressable>
+          ))}
+        </View>
       )}
 
       {/* Sign out */}
@@ -193,6 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   statNum: { fontSize: 34, lineHeight: 38 },
+  cardList: { gap: spacing.md },
   planRow: { flexDirection: 'row', alignItems: 'center' },
   section: { marginTop: spacing.xxl, marginBottom: spacing.lg },
   sectionHead: {

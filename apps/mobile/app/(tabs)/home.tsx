@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -115,8 +115,8 @@ export default function HomeScreen() {
         </BentoCard>
       </View>
 
-      {/* Language chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {/* Language chips (fixed wrap row — no horizontal-scroll layout flash) */}
+      <View style={styles.chips}>
         {LANGUAGES.map((lang) => {
           const active = lang === language;
           return (
@@ -131,7 +131,7 @@ export default function HomeScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* Trending */}
       <View style={styles.sectionHead}>
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   bentoCell: { flex: 1, gap: spacing.xs, minHeight: 120, justifyContent: 'space-between' },
   statNum: { marginTop: spacing.sm },
 
-  chips: { gap: spacing.sm, paddingVertical: spacing.lg },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingVertical: spacing.lg },
   chip: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,

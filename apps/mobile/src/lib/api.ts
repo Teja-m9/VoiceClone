@@ -1,6 +1,7 @@
 import { env, MOCK_MODE, SIMULATE_JOBS, BACKEND_READY } from './env';
 import { supabase } from './supabase';
 import { mockData, mockJobs } from './mock';
+import { isAdminEmail } from './admin';
 
 /** Error thrown for non-2xx API responses, carrying the server error envelope code. */
 export class ApiError extends Error {
@@ -125,7 +126,8 @@ export const api = {
         const {
           data: { session },
         } = await supabase.auth.getSession();
-        if (session) {
+        // Admins bypass the quota entirely (unlimited covers).
+        if (session && !isAdminEmail(session.user.email)) {
           const { data } = await supabase.rpc('reserve_quota', {
             p_user: session.user.id,
             p_limit: 3,
