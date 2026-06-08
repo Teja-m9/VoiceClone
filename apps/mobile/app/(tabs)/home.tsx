@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -8,99 +8,115 @@ import { Screen, Text, BentoCard, SongCard } from '@/components';
 import { useProfile } from '@/hooks/useProfile';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSongSearch, LANGUAGES, type Language } from '@/hooks/useSongSearch';
-import { gradients, palette, radius, spacing, typography, motion } from '@/theme';
+import { gradients, palette, radius, shadow, spacing, motion } from '@/theme';
 import type { Track } from '@/types/track';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile, isPremium, quotaRemaining } = useProfile();
+  const { isPremium, quotaRemaining } = useProfile();
   const { unreadCount } = useNotifications();
 
-  const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<Language>('Telugu');
-  const { tracks, loading, usedFallback } = useSongSearch(query, language);
+  const { tracks, loading, usedFallback } = useSongSearch('', language);
 
-  const onPickSong = (track: Track) => {
-    router.push({ pathname: '/(tabs)/create', params: { trackId: track.id } });
-  };
+  const goToCreate = (trackId?: string) =>
+    router.push({ pathname: '/(tabs)/create', params: trackId ? { trackId } : {} });
 
   return (
     <Screen scroll>
-      {/* Header */}
+      {/* Brand + notifications */}
       <Animated.View entering={FadeInDown.duration(motion.duration.base)} style={styles.header}>
-        <View>
-          <Text variant="overline" color={palette.violet}>
-            WELCOME BACK
+        <View style={styles.brand}>
+          <LinearGradient colors={gradients.primary} style={styles.brandMark}>
+            <Ionicons name="musical-note" size={20} color={palette.textInverse} />
+          </LinearGradient>
+          <Text variant="displayXl" style={styles.brandName}>
+            Auralis
           </Text>
-          <Text variant="h1">{profile?.display_name || 'Artist'}</Text>
         </View>
-        <View style={styles.bell}>
+        <Pressable
+          style={styles.bell}
+          onPress={() => router.push('/notifications')}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
           <Ionicons name="notifications-outline" size={22} color={palette.textPrimary} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
-              <Text variant="caption" color="#15161C" style={{ fontWeight: '800' }}>
+              <Text variant="caption" color={palette.textInverse} style={styles.badgeText}>
                 {unreadCount}
               </Text>
             </View>
           )}
-        </View>
+        </Pressable>
       </Animated.View>
 
-      {/* Hero CTA bento */}
-      <BentoCard accent="primary" index={1} onPress={() => router.push('/record')} style={styles.hero}>
-        <LinearGradient colors={gradients.primary} style={styles.heroIcon}>
-          <Ionicons name="mic" size={26} color={palette.textInverse} />
-        </LinearGradient>
-        <Text variant="h2" style={{ marginTop: spacing.md }}>
-          Clone your voice
+      {/* Search → opens Create (search happens there) */}
+      <Pressable
+        style={styles.searchBar}
+        onPress={() => goToCreate()}
+        accessibilityRole="button"
+        accessibilityLabel="Search songs"
+      >
+        <Ionicons name="search" size={18} color={palette.textMuted} />
+        <Text variant="body" color={palette.textMuted} style={{ flex: 1 }}>
+          Search any song to cover…
         </Text>
-        <Text variant="body">Record 30–60s once. Then sing any track in your own voice.</Text>
-      </BentoCard>
+        <Ionicons name="arrow-forward" size={16} color={palette.textMuted} />
+      </Pressable>
 
-      {/* Quota / plan bento */}
-      <BentoCard index={2} accent={isPremium ? 'success' : null} style={{ marginTop: spacing.lg }}>
-        <View style={styles.quotaRow}>
-          <View>
-            <Text variant="label" color={palette.textSecondary}>
-              {isPremium ? 'Premium' : 'Free plan'}
+      {/* Hero banner */}
+      <Animated.View entering={FadeInDown.delay(60).duration(motion.duration.slow)}>
+        <Pressable onPress={() => router.push('/record')} style={shadow.glow}>
+          <LinearGradient colors={gradients.aurora} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+            <View style={styles.heroIcon}>
+              <Ionicons name="mic" size={28} color={palette.textPrimary} />
+            </View>
+            <Text variant="display" color={palette.textPrimary} style={styles.heroTitle}>
+              Clone your{'\n'}voice
             </Text>
-            <Text variant="h2">
-              {isPremium ? 'Unlimited covers' : `${quotaRemaining} of 3 covers left today`}
+            <Text variant="body" color="#1B3A2E">
+              Record 30–60s once — then sing any track in your own voice.
             </Text>
-          </View>
+            <View style={styles.heroCta}>
+              <Text variant="label" color={palette.textPrimary}>
+                Get started
+              </Text>
+              <Ionicons name="arrow-forward" size={16} color={palette.textPrimary} />
+            </View>
+          </LinearGradient>
+        </Pressable>
+      </Animated.View>
+
+      {/* Bento stat grid */}
+      <View style={styles.bentoRow}>
+        <BentoCard index={2} style={styles.bentoCell}>
           <Ionicons
             name={isPremium ? 'flash' : 'flash-outline'}
-            size={28}
+            size={22}
             color={isPremium ? palette.success : palette.amber}
           />
-        </View>
-      </BentoCard>
-
-      {/* Search */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color={palette.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search songs on JioSaavn…"
-          placeholderTextColor={palette.textMuted}
-          selectionColor={palette.violet}
-          style={styles.searchInput}
-          returnKeyType="search"
-        />
-        {query.length > 0 && (
-          <Pressable onPress={() => setQuery('')} hitSlop={10}>
-            <Ionicons name="close-circle" size={18} color={palette.textMuted} />
-          </Pressable>
-        )}
+          <Text variant="displayXl" style={styles.statNum}>
+            {isPremium ? '∞' : quotaRemaining}
+          </Text>
+          <Text variant="caption">{isPremium ? 'Unlimited today' : 'Covers left today'}</Text>
+        </BentoCard>
+        <BentoCard
+          index={3}
+          accent={isPremium ? 'success' : null}
+          style={styles.bentoCell}
+          onPress={() => router.push('/billing')}
+        >
+          <Ionicons name="diamond-outline" size={22} color={palette.violet} />
+          <Text variant="h1" style={styles.statNum}>
+            {isPremium ? 'Premium' : 'Free'}
+          </Text>
+          <Text variant="caption">{isPremium ? 'Manage plan' : 'Tap to upgrade'}</Text>
+        </BentoCard>
       </View>
 
       {/* Language chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-      >
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         {LANGUAGES.map((lang) => {
           const active = lang === language;
           return (
@@ -117,23 +133,18 @@ export default function HomeScreen() {
         })}
       </ScrollView>
 
-      {/* Results */}
+      {/* Trending */}
       <View style={styles.sectionHead}>
-        <Text variant="h2">{query.trim() ? 'Results' : `Trending · ${language}`}</Text>
+        <Text variant="h2">{`Trending · ${language}`}</Text>
         {usedFallback && <Text variant="caption">offline</Text>}
       </View>
 
       {loading ? (
         <ActivityIndicator color={palette.violet} style={{ marginTop: spacing.xl }} />
-      ) : tracks.length === 0 ? (
-        <BentoCard index={3}>
-          <Text variant="title">No songs found</Text>
-          <Text variant="body">Try another search term.</Text>
-        </BentoCard>
       ) : (
         <View style={styles.list}>
-          {tracks.map((track, i) => (
-            <SongCard key={track.id} track={track} index={Math.min(i, 6)} onPress={onPickSong} />
+          {tracks.map((track: Track, i) => (
+            <SongCard key={track.id} track={track} index={Math.min(i, 6)} onPress={(t) => goToCreate(t.id)} />
           ))}
         </View>
       )}
@@ -146,12 +157,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  brandMark: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  brandName: { letterSpacing: -1 },
   bell: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
@@ -166,24 +180,17 @@ const styles = StyleSheet.create({
     height: 20,
     paddingHorizontal: 5,
     borderRadius: 10,
-    backgroundColor: palette.lime,
+    backgroundColor: palette.magenta,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hero: { gap: spacing.xs },
-  heroIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quotaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badgeText: { fontWeight: '800' },
+
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.xxl,
+    marginBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radius.pill,
@@ -191,7 +198,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
   },
-  searchInput: { ...typography.body, color: palette.textPrimary, flex: 1, paddingVertical: 0 },
+
+  hero: { borderRadius: radius.xl, padding: spacing.xl, gap: spacing.xs, overflow: 'hidden' },
+  heroIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  heroTitle: { letterSpacing: -0.5 },
+  heroCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+  },
+
+  bentoRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
+  bentoCell: { flex: 1, gap: spacing.xs, minHeight: 120, justifyContent: 'space-between' },
+  statNum: { marginTop: spacing.sm },
+
   chips: { gap: spacing.sm, paddingVertical: spacing.lg },
   chip: {
     paddingVertical: spacing.sm,

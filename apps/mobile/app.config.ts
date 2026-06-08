@@ -7,7 +7,7 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'RealMVP',
+  name: 'Auralis',
   slug: 'realmvp',
   scheme: 'realmvp',
   version: '0.1.0',
@@ -42,6 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-font',
+    'expo-web-browser',
     [
       'expo-splash-screen',
       { backgroundColor: '#EFEFE9', resizeMode: 'cover' },

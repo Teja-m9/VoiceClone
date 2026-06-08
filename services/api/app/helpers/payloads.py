@@ -5,6 +5,7 @@ def build_clone_job_payload(
     *,
     job_id: str,
     watermark: bool,
+    preview: bool,
     voice_ref_get_url: str,
     song_stream_url: str,
     output_audio_put_url: str,
@@ -14,6 +15,8 @@ def build_clone_job_payload(
         "job_id": job_id,
         "kind": "clone_sing",
         "watermark": watermark,
+        # Free tier gets a 30s preview; premium gets the full song.
+        "preview": preview,
         "inputs": {
             "song_url": song_stream_url,
             "voice_ref_url": voice_ref_get_url,

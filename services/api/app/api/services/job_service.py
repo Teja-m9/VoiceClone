@@ -83,6 +83,7 @@ async def create_job(
     payload = build_clone_job_payload(
         job_id=job_id,
         watermark=not is_premium,
+        preview=not is_premium,  # free → 30s preview, premium → full song
         voice_ref_get_url=s3.presign_get(vp["ref_audio_key"], config.presign_get_ttl),
         song_stream_url=song_url,
         output_audio_put_url=s3.presign_put(out_key, "audio/mpeg", config.presign_get_ttl),

@@ -7,3 +7,4 @@ export { BentoCard } from './BentoCard';
 export { SongCard } from './SongCard';
 export { JobStatusBadge } from './JobStatusBadge';
 export { TextField } from './TextField';
+export { AuthSocial } from './AuthSocial';

@@ -1,4 +1,4 @@
-import { env, MOCK_MODE } from './env';
+import { env, MOCK_MODE, SIMULATE_JOBS, BACKEND_READY } from './env';
 import { supabase } from './supabase';
 import { mockData, mockJobs } from './mock';
 
@@ -118,7 +118,24 @@ export const api = {
     idempotencyKey: string,
     streamUrl?: string | null,
   ) => {
-    if (MOCK_MODE) {
+    if (SIMULATE_JOBS) {
+      // Real Supabase but simulated GPU: still enforce + decrement the daily quota via the
+      // atomic RPC so "covers left today" updates live through the profiles realtime channel.
+      if (!MOCK_MODE) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session) {
+          const { data } = await supabase.rpc('reserve_quota', {
+            p_user: session.user.id,
+            p_limit: 3,
+          });
+          const row = Array.isArray(data) ? data[0] : data;
+          if (row && row.allowed === false) {
+            throw new ApiError(429, 'QUOTA_EXCEEDED', 'Daily free limit reached');
+          }
+        }
+      }
       const job = mockJobs.create(songId, voiceProfileId, streamUrl);
       return {
         id: job.id,
@@ -142,8 +159,16 @@ export const api = {
     });
   },
 
+  /** Create a Stripe Checkout session for a plan; returns the hosted checkout URL. */
+  createCheckout: (plan: 'monthly' | 'quarterly') => {
+    if (!BACKEND_READY) {
+      throw new ApiError(0, 'BACKEND_NOT_READY', 'Payments activate once the backend is deployed.');
+    }
+    return request<{ url: string }>('/billing/checkout', { method: 'POST', body: { plan } });
+  },
+
   getJob: async (jobId: string) => {
-    if (MOCK_MODE) {
+    if (SIMULATE_JOBS) {
       const job = mockJobs.get(jobId);
       return {
         id: jobId,

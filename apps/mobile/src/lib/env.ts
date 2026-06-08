@@ -34,10 +34,21 @@ const supabaseAnonKey = required(extra.supabaseAnonKey, 'EXPO_PUBLIC_SUPABASE_AN
 export const MOCK_MODE =
   !supabaseUrl || supabaseUrl.includes('placeholder') || !supabaseAnonKey || supabaseAnonKey.includes('placeholder');
 
+const apiBaseUrl = extra.apiBaseUrl ?? '';
+
+/** True once a real FastAPI backend is configured (not the placeholder domain). */
+export const BACKEND_READY = !!apiBaseUrl && !apiBaseUrl.includes('api.realmvp.xyz');
+
+/**
+ * Until the GPU backend is deployed, cover generation is simulated client-side (plays the
+ * picked track as a stand-in). Auth/profiles/feed stay 100% real against Supabase.
+ */
+export const SIMULATE_JOBS = MOCK_MODE || !BACKEND_READY;
+
 export const env = {
   supabaseUrl: supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey: supabaseAnonKey || 'placeholder-anon-key',
-  apiBaseUrl: required(extra.apiBaseUrl, 'EXPO_PUBLIC_API_BASE_URL'),
+  apiBaseUrl: apiBaseUrl || 'https://api.realmvp.xyz',
   // JioSaavn API (override with your own instance via EXPO_PUBLIC_SAAVN_API_URL).
   saavnApiUrl: extra.saavnApiUrl || 'https://saavn.sumit.co',
 } as const;

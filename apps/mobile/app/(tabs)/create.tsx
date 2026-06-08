@@ -61,7 +61,17 @@ export default function CreateScreen() {
         makeKey(selectedTrack.id, voiceId),
         selectedTrack.streamUrl,
       );
-      router.push({ pathname: '/processing/[jobId]', params: { jobId: job.id } });
+      const voiceName = readyProfiles.find((v) => v.id === voiceId)?.name ?? 'My voice';
+      router.push({
+        pathname: '/processing/[jobId]',
+        params: {
+          jobId: job.id,
+          title: selectedTrack.title,
+          artist: selectedTrack.artist,
+          cover: selectedTrack.coverUrl ?? '',
+          voice: voiceName,
+        },
+      });
     } catch (e) {
       if (e instanceof ApiError && e.code === 'QUOTA_EXCEEDED') {
         setError('You have used all 3 free covers today. Upgrade for unlimited.');
@@ -169,6 +179,9 @@ export default function CreateScreen() {
           loading={submitting}
           disabled={!canSubmit}
         />
+        <Text variant="caption" center color={palette.textMuted} style={{ marginTop: spacing.md }}>
+          {isPremium ? 'Premium · full song' : 'Free · 30s preview · upgrade for the full song'}
+        </Text>
       </View>
     </Screen>
   );

@@ -16,8 +16,16 @@ def _run(cmd: list[str]) -> None:
         raise MixError(f"ffmpeg failed: {proc.stderr[-500:]}")
 
 
-def remix(converted_vocal: str, instrumental: str, watermark: bool, workdir: str) -> str:
+def remix(
+    converted_vocal: str,
+    instrumental: str,
+    watermark: bool,
+    workdir: str,
+    preview: bool = False,
+) -> str:
     out_path = os.path.join(workdir, "cover.mp3")
+    # Free tier → trim the output to a 30s preview; premium → full track.
+    trim = ["-t", "30"] if preview else []
 
     if watermark:
         # Faint 1kHz beep every ~12s, mixed at low volume as an audible attribution mark.
@@ -30,7 +38,7 @@ def remix(converted_vocal: str, instrumental: str, watermark: bool, workdir: str
         cmd = [
             "ffmpeg", "-y", "-i", converted_vocal, "-i", instrumental,
             "-filter_complex", filter_complex, "-map", "[out]",
-            "-c:a", "libmp3lame", "-b:a", "192k", out_path,
+            "-c:a", "libmp3lame", "-b:a", "192k", *trim, out_path,
         ]
     else:
         filter_complex = (
@@ -39,7 +47,7 @@ def remix(converted_vocal: str, instrumental: str, watermark: bool, workdir: str
         cmd = [
             "ffmpeg", "-y", "-i", converted_vocal, "-i", instrumental,
             "-filter_complex", filter_complex, "-map", "[out]",
-            "-c:a", "libmp3lame", "-b:a", "192k", out_path,
+            "-c:a", "libmp3lame", "-b:a", "192k", *trim, out_path,
         ]
 
     _run(cmd)

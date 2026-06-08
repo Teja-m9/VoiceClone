@@ -14,6 +14,7 @@ export function useVoiceProfiles() {
   const userId = session?.user.id ?? null;
   const [profiles, setProfiles] = useState<VoiceProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cid] = useState(() => Math.random().toString(36).slice(2));
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -40,7 +41,7 @@ export function useVoiceProfiles() {
     void refresh();
 
     const channel = supabase
-      .channel(`vp:${userId}`)
+      .channel(`vp:${userId}:${cid}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'voice_profiles', filter: `user_id=eq.${userId}` },

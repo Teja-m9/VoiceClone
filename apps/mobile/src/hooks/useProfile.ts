@@ -14,6 +14,8 @@ export function useProfile() {
   const userId = session?.user.id ?? null;
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [loading, setLoading] = useState(true);
+  // Unique per hook instance so multiple mounted screens don't collide on one channel.
+  const [cid] = useState(() => Math.random().toString(36).slice(2));
 
   const refresh = useCallback(async () => {
     if (!userId) return;
@@ -40,7 +42,7 @@ export function useProfile() {
     void refresh();
 
     const channel = supabase
-      .channel(`profile:${userId}`)
+      .channel(`profile:${userId}:${cid}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },

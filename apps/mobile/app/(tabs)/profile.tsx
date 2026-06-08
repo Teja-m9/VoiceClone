@@ -1,4 +1,5 @@
 import { StyleSheet, View, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,20 +8,24 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useProfile } from '@/hooks/useProfile';
 import { useVoiceProfiles } from '@/hooks/useVoiceProfiles';
 import { useNotifications } from '@/hooks/useNotifications';
+import { usePublishedCovers } from '@/hooks/usePublishedCovers';
 import { gradients, palette, radius, spacing, motion } from '@/theme';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { session, signOut } = useAuth();
   const { profile, isPremium, quotaRemaining } = useProfile();
   const { profiles } = useVoiceProfiles();
   const { items: notifications, unreadCount, markRead } = useNotifications();
+  const { items: published } = usePublishedCovers();
+  const myPublished = published.filter((p) => p.user_id === session?.user.id).length;
 
   return (
     <Screen scroll>
       {/* Identity */}
       <Animated.View entering={FadeInDown.duration(motion.duration.base)} style={styles.identity}>
         <LinearGradient colors={gradients.aurora} style={styles.avatar}>
-          <Text variant="display" color="#0B0B12">
+          <Text variant="display" color={palette.textInverse}>
             {(profile?.display_name || session?.user.email || '?').charAt(0).toUpperCase()}
           </Text>
         </LinearGradient>
@@ -28,10 +33,53 @@ export default function ProfileScreen() {
           {profile?.display_name || 'Artist'}
         </Text>
         <Text variant="caption">{session?.user.email}</Text>
+        <Pressable
+          onPress={() => router.push('/edit-profile')}
+          style={styles.editBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+        >
+          <Ionicons name="create-outline" size={15} color={palette.textPrimary} />
+          <Text variant="label" color={palette.textPrimary}>
+            Edit profile
+          </Text>
+        </Pressable>
       </Animated.View>
 
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={styles.statCell}>
+          <Text variant="displayXl" style={styles.statNum}>
+            {profiles.length}
+          </Text>
+          <Text variant="label" color={palette.textSecondary}>
+            Voices
+          </Text>
+        </View>
+        <View style={styles.statCell}>
+          <Text variant="displayXl" style={styles.statNum}>
+            {myPublished}
+          </Text>
+          <Text variant="label" color={palette.textSecondary}>
+            Published
+          </Text>
+        </View>
+        <View style={styles.statCell}>
+          <Text variant="displayXl" style={styles.statNum}>
+            {isPremium ? '∞' : quotaRemaining}
+          </Text>
+          <Text variant="label" color={palette.textSecondary}>
+            Credits
+          </Text>
+        </View>
+      </View>
+
       {/* Plan */}
-      <BentoCard accent={isPremium ? 'success' : 'primary'} index={1}>
+      <BentoCard
+        accent={isPremium ? 'success' : 'primary'}
+        index={1}
+        onPress={() => router.push('/billing')}
+      >
         <View style={styles.planRow}>
           <View style={{ flex: 1 }}>
             <Text variant="overline" color={isPremium ? palette.success : palette.violet}>
@@ -45,11 +93,9 @@ export default function ProfileScreen() {
         {!isPremium && (
           <View style={{ marginTop: spacing.md }}>
             <GradientButton
-              label="Upgrade to Premium · ₹149/mo"
+              label="Upgrade to Premium"
               gradient="ember"
-              onPress={() => {
-                /* TODO: launch Razorpay checkout (wired with backend) */
-              }}
+              onPress={() => router.push('/billing')}
             />
           </View>
         )}
@@ -119,8 +165,34 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  identity: { alignItems: 'center', marginBottom: spacing.xl },
+  identity: { alignItems: 'center', marginBottom: spacing.lg },
   avatar: { width: 80, height: 80, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+  },
+  statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl, alignSelf: 'stretch' },
+  statCell: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    minHeight: 124,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: palette.glassStroke,
+    backgroundColor: palette.surface,
+  },
+  statNum: { fontSize: 34, lineHeight: 38 },
   planRow: { flexDirection: 'row', alignItems: 'center' },
   section: { marginTop: spacing.xxl, marginBottom: spacing.lg },
   sectionHead: {

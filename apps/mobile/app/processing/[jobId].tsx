@@ -19,7 +19,14 @@ const STEPS = ['Splitting vocals', 'Cloning your timbre', 'Mixing the track', 'R
 
 export default function ProcessingScreen() {
   const router = useRouter();
-  const { jobId } = useLocalSearchParams<{ jobId: string }>();
+  const params = useLocalSearchParams<{
+    jobId: string;
+    title?: string;
+    artist?: string;
+    cover?: string;
+    voice?: string;
+  }>();
+  const { jobId } = params;
   const { job, isTerminal } = useRealtimeJob(jobId ?? null);
 
   const spin = useSharedValue(0);
@@ -33,10 +40,23 @@ export default function ProcessingScreen() {
   // When the job finishes, auto-advance to playback.
   useEffect(() => {
     if (job?.status === 'done') {
-      const t = setTimeout(() => router.replace({ pathname: '/playback/[jobId]', params: { jobId: job.id } }), 700);
+      const t = setTimeout(
+        () =>
+          router.replace({
+            pathname: '/playback/[jobId]',
+            params: {
+              jobId: job.id,
+              title: params.title ?? '',
+              artist: params.artist ?? '',
+              cover: params.cover ?? '',
+              voice: params.voice ?? '',
+            },
+          }),
+        700,
+      );
       return () => clearTimeout(t);
     }
-  }, [job?.status, job?.id, router]);
+  }, [job?.status, job?.id, router, params.title, params.artist, params.cover, params.voice]);
 
   const failed = job?.status === 'failed';
 

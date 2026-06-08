@@ -45,6 +45,9 @@ function AuthGate() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="record" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="billing" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
       <Stack.Screen name="processing/[jobId]" />
       <Stack.Screen name="playback/[jobId]" />
     </Stack>

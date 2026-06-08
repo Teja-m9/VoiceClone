@@ -56,5 +56,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.bg },
   safe: { flex: 1 },
   content: { flex: 1, paddingTop: spacing.lg },
-  scrollContent: { paddingBottom: spacing.huge, flexGrow: 1 },
+  // Generous bottom space so content clears the floating tab bar (≈64h + insets).
+  scrollContent: { paddingBottom: 128, flexGrow: 1 },
 });

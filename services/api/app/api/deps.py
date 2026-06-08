@@ -43,6 +43,7 @@ async def current_principal(authorization: str = Header(default="")) -> Principa
 from app.client.jiosaavn_client import get_jiosaavn  # noqa: E402,F401
 from app.client.runpod_client import get_runpod  # noqa: E402,F401
 from app.client.s3_client import get_s3  # noqa: E402,F401
+from app.client.stripe_client import get_stripe  # noqa: E402,F401
 from app.client.supabase_client import get_supabase  # noqa: E402,F401
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "get_jiosaavn",
     "get_runpod",
     "get_s3",
+    "get_stripe",
     "get_supabase",
     "Depends",
 ]

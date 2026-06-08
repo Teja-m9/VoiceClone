@@ -14,6 +14,7 @@ export function useNotifications() {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
   const [items, setItems] = useState<NotificationRow[]>([]);
+  const [cid] = useState(() => Math.random().toString(36).slice(2));
 
   useEffect(() => {
     if (MOCK_MODE) {
@@ -36,7 +37,7 @@ export function useNotifications() {
       });
 
     const channel = supabase
-      .channel(`notif:${userId}`)
+      .channel(`notif:${userId}:${cid}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
@@ -71,7 +72,23 @@ export function useNotifications() {
       .eq('id', id);
   }, []);
 
+  const markAllRead = useCallback(async () => {
+    const now = new Date().toISOString();
+    if (MOCK_MODE) {
+      items.forEach((n) => !n.read_at && mockData.markNotifRead(n.id));
+      setItems((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: now })));
+      return;
+    }
+    if (!userId) return;
+    setItems((prev) => prev.map((n) => (n.read_at ? n : { ...n, read_at: now })));
+    await supabase
+      .from('notifications')
+      .update({ read_at: now })
+      .eq('user_id', userId)
+      .is('read_at', null);
+  }, [userId, items]);
+
   const unreadCount = items.filter((n) => !n.read_at).length;
 
-  return { items, unreadCount, markRead };
+  return { items, unreadCount, markRead, markAllRead };
 }

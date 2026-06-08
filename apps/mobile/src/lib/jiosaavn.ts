@@ -28,6 +28,20 @@ interface SaavnSong {
   album?: { name?: string };
 }
 
+/** JioSaavn returns titles with HTML entities (&amp;, &quot;, &#039;) — decode them. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n)))
+    .trim();
+}
+
 /** Pick the highest-quality URL from a JioSaavn image/downloadUrl array. */
 function pickBest(arr?: SaavnImage[]): string | null {
   if (!arr || arr.length === 0) return null;
@@ -47,8 +61,8 @@ function toTrack(s: SaavnSong): Track {
   const durationSec = typeof s.duration === 'string' ? parseInt(s.duration, 10) : (s.duration ?? 0);
   return {
     id: s.id,
-    title: s.name ?? s.title ?? 'Untitled',
-    artist: artistName(s),
+    title: decodeEntities(s.name ?? s.title ?? 'Untitled'),
+    artist: decodeEntities(artistName(s)),
     coverUrl: cover,
     durationMs: (Number.isFinite(durationSec) ? durationSec : 0) * 1000,
     streamUrl: pickBest(s.downloadUrl),

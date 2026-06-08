@@ -26,6 +26,14 @@ class Config(BaseSettings):
     # JioSaavn
     saavn_api_url: str = "https://saavn.sumit.co"
 
+    # Stripe billing (optional until you wire payments)
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_monthly: str = ""
+    stripe_price_quarterly: str = ""
+    billing_success_url: str = "realmvp://billing/success"
+    billing_cancel_url: str = "realmvp://billing/cancel"
+
     # Misc
     api_base_url: str = "http://localhost:8000"
     free_daily_quota: int = 3

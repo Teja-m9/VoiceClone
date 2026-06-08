@@ -3,7 +3,7 @@ domain errors → the consistent JSON error envelope {"error": {"code","message"
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes import health, jobs, uploads, voice_profiles, webhooks
+from app.api.routes import billing, health, jobs, uploads, voice_profiles, webhooks
 from app.constants.errors import ErrorCode
 from app.errors import DomainError
 from app.utils.logging_config import configure_logging, get_logger
@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     app.include_router(uploads.router)
     app.include_router(voice_profiles.router)
     app.include_router(jobs.router)
+    app.include_router(billing.router)
     app.include_router(webhooks.router)
 
     @app.exception_handler(DomainError)

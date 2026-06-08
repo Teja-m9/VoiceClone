@@ -76,6 +76,19 @@ export type NotificationRow = {
   created_at: string;
 };
 
+export type PublishedCoverRow = {
+  id: string;
+  user_id: string | null;
+  author_name: string;
+  song_title: string;
+  artist: string | null;
+  cover_url: string | null;
+  audio_url: string | null;
+  voice_name: string | null;
+  plays: number;
+  created_at: string;
+};
+
 /** Each table exposes Row (select) + Insert/Update (mutations) for the typed client. */
 type Table<T> = { Row: T; Insert: Partial<T>; Update: Partial<T>; Relationships: [] };
 
@@ -92,9 +105,19 @@ export type Database = {
       songs: Table<SongRow>;
       jobs: Table<JobRow>;
       notifications: Table<NotificationRow>;
+      published_covers: Table<PublishedCoverRow>;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      reserve_quota: {
+        Args: { p_user: string; p_limit: number };
+        Returns: { allowed: boolean; remaining: number }[];
+      };
+      release_quota: {
+        Args: { p_user: string };
+        Returns: undefined;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

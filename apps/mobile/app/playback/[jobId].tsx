@@ -13,9 +13,14 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Screen, Text, GradientButton } from '@/components';
+import { Screen, Text, GradientButton, BentoCard } from '@/components';
 import { api, type JobOut } from '@/lib/api';
+import { usePublishedCovers } from '@/hooks/usePublishedCovers';
+import { useProfile } from '@/hooks/useProfile';
 import { gradients, palette, spacing } from '@/theme';
+
+/** Free tier hears a 30s preview; full song is Premium. */
+const PREVIEW_SECONDS = 30;
 
 /** Animated bar in the faux equalizer. */
 function EqBar({ delay, playing }: { delay: number; playing: boolean }) {
@@ -33,15 +38,35 @@ function EqBar({ delay, playing }: { delay: number; playing: boolean }) {
 
 export default function PlaybackScreen() {
   const router = useRouter();
-  const { jobId } = useLocalSearchParams<{ jobId: string }>();
+  const params = useLocalSearchParams<{
+    jobId: string;
+    title?: string;
+    artist?: string;
+    cover?: string;
+    voice?: string;
+  }>();
+  const { jobId } = params;
+  const { publish } = usePublishedCovers();
+  const { isPremium } = useProfile();
   const [job, setJob] = useState<JobOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [previewEnded, setPreviewEnded] = useState(false);
 
   // Player created without a source; we swap in the URL once the job loads.
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
   const playing = status.playing;
+
+  // Free tier: stop at the 30s preview mark and prompt to upgrade for the full song.
+  useEffect(() => {
+    if (!isPremium && status.playing && status.currentTime >= PREVIEW_SECONDS) {
+      player.pause();
+      setPreviewEnded(true);
+    }
+  }, [isPremium, status.playing, status.currentTime, player]);
 
   // Fetch fresh presigned output URLs, then point the player at the audio.
   useEffect(() => {
@@ -70,11 +95,33 @@ export default function PlaybackScreen() {
     if (!job?.output_audio_url) return;
     if (playing) {
       player.pause();
-    } else {
-      if (status.didJustFinish || status.currentTime >= (status.duration || 0)) {
-        player.seekTo(0);
-      }
-      player.play();
+      return;
+    }
+    // Replay the 30s preview from the start for free users.
+    if (previewEnded || status.didJustFinish || status.currentTime >= (status.duration || 0)) {
+      player.seekTo(0);
+      setPreviewEnded(false);
+    }
+    player.play();
+  };
+
+  const onPublish = async () => {
+    if (published || !job?.output_audio_url) return;
+    setPublishing(true);
+    setError(null);
+    try {
+      await publish({
+        songTitle: params.title || 'My cover',
+        artist: params.artist || null,
+        coverUrl: params.cover || null,
+        audioUrl: job.output_audio_url,
+        voiceName: params.voice || null,
+      });
+      setPublished(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not publish');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -114,8 +161,13 @@ export default function PlaybackScreen() {
           YOUR COVER
         </Text>
         <Text variant="displayXl" color="#0B0B12">
-          It's ready.
+          {params.title || "It's ready."}
         </Text>
+        {!!params.artist && (
+          <Text variant="body" color="#1B3A2E">
+            {params.artist} · in your voice
+          </Text>
+        )}
       </LinearGradient>
 
       <View style={styles.body}>
@@ -133,6 +185,36 @@ export default function PlaybackScreen() {
           </LinearGradient>
         </Pressable>
 
+        {/* Free-tier 30s preview gate */}
+        {!isPremium && (
+          <BentoCard accent={previewEnded ? 'primary' : null} style={styles.previewCard}>
+            <View style={styles.previewRow}>
+              <Ionicons
+                name={previewEnded ? 'lock-closed' : 'time-outline'}
+                size={20}
+                color={previewEnded ? palette.violet : palette.textMuted}
+              />
+              <View style={{ flex: 1 }}>
+                <Text variant="title">
+                  {previewEnded ? 'Preview ended' : '30-second preview'}
+                </Text>
+                <Text variant="caption">
+                  {previewEnded
+                    ? 'Upgrade to hear & share the full song.'
+                    : 'Free covers play the first 30s. Go Premium for the full track.'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ marginTop: spacing.md }}>
+              <GradientButton
+                label="Unlock full song"
+                gradient="ember"
+                onPress={() => router.push('/billing')}
+              />
+            </View>
+          </BentoCard>
+        )}
+
         {error && (
           <Text variant="caption" color={palette.danger} center>
             {error}
@@ -140,7 +222,13 @@ export default function PlaybackScreen() {
         )}
 
         <View style={styles.actions}>
-          <GradientButton label="Share cover" onPress={onShare} />
+          <GradientButton
+            label={published ? '✓ Published to Shared' : 'Publish to Shared'}
+            onPress={onPublish}
+            loading={publishing}
+            disabled={published}
+          />
+          <GradientButton label="Share cover" variant="outline" onPress={onShare} />
           <GradientButton
             label="Make another"
             variant="outline"
@@ -167,6 +255,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   eqBar: { width: 8, borderRadius: 4, backgroundColor: palette.violet },
+  previewCard: { marginBottom: spacing.sm },
+  previewRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   playBtn: { alignSelf: 'center' },
   playInner: {
     width: 96,

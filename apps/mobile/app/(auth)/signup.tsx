@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Screen, Text, TextField, GradientButton } from '@/components';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, Text, Mark, TextField, GradientButton, AuthSocial } from '@/components';
 import { useAuth } from '@/providers/AuthProvider';
-import { palette, spacing, motion } from '@/theme';
+import { gradients, palette, spacing, motion } from '@/theme';
 
 export default function SignupScreen() {
   const { signUp } = useAuth();
@@ -38,19 +40,22 @@ export default function SignupScreen() {
   return (
     <Screen scroll>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Animated.View entering={FadeInDown.duration(motion.duration.slow)} style={styles.head}>
-          <Text variant="overline" color={palette.magenta}>
-            GET STARTED
+        <Animated.View entering={FadeIn.duration(motion.duration.slow)} style={styles.brandWrap}>
+          <View style={styles.brandRow}>
+            <LinearGradient colors={gradients.primary} style={styles.logo}>
+              <Ionicons name="musical-note" size={20} color={palette.textInverse} />
+            </LinearGradient>
+            <Text variant="title">Auralis</Text>
+          </View>
+          <Text variant="displayXl" style={{ marginTop: spacing.xl }}>
+            <Mark>Welcome!</Mark>
           </Text>
-          <Text variant="display" style={{ marginTop: spacing.sm }}>
-            Create your account
+          <Text variant="body" style={{ marginTop: spacing.sm }}>
+            Start your journey today — clone your voice and make your first cover.
           </Text>
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInDown.delay(120).duration(motion.duration.slow)}
-          style={styles.form}
-        >
+        <Animated.View entering={FadeInDown.delay(120).duration(motion.duration.slow)} style={styles.form}>
           <TextField label="Display name" value={name} onChangeText={setName} placeholder="Your name" />
           <TextField
             label="Email"
@@ -65,7 +70,7 @@ export default function SignupScreen() {
             value={password}
             onChangeText={setPassword}
             placeholder="At least 6 characters"
-            secureTextEntry
+            secureToggle
           />
           {error && (
             <Text variant="caption" color={palette.danger}>
@@ -77,14 +82,18 @@ export default function SignupScreen() {
               {info}
             </Text>
           )}
-          <View style={{ marginTop: spacing.md }}>
-            <GradientButton label="Create account" gradient="ember" onPress={onSubmit} loading={loading} />
+
+          <View style={{ marginTop: spacing.sm }}>
+            <GradientButton label="Create your account" onPress={onSubmit} loading={loading} />
           </View>
+
+          <AuthSocial onPress={(p) => setInfo(`${p} sign-in is coming soon.`)} />
+
           <View style={styles.footer}>
             <Text variant="caption">Already have an account? </Text>
             <Link href="/(auth)/login">
               <Text variant="caption" color={palette.violet}>
-                Log in
+                Sign in
               </Text>
             </Link>
           </View>
@@ -95,7 +104,9 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  head: { marginTop: spacing.xxl, marginBottom: spacing.xl },
+  brandWrap: { marginTop: spacing.xl, marginBottom: spacing.xxl },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  logo: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   form: { gap: spacing.lg },
-  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg },
+  footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.sm },
 });

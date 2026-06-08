@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MOCK_MODE } from '@/lib/env';
+import { SIMULATE_JOBS } from '@/lib/env';
 import { mockJobs } from '@/lib/mock';
 import type { JobRow } from '@/types/db';
 
@@ -11,11 +11,12 @@ import type { JobRow } from '@/types/db';
  */
 export function useRealtimeJob(jobId: string | null) {
   const [job, setJob] = useState<JobRow | null>(null);
+  const [cid] = useState(() => Math.random().toString(36).slice(2));
 
   useEffect(() => {
     if (!jobId) return;
 
-    if (MOCK_MODE) {
+    if (SIMULATE_JOBS) {
       return mockJobs.subscribe(jobId, setJob);
     }
 
@@ -29,7 +30,7 @@ export function useRealtimeJob(jobId: string | null) {
       });
 
     const channel = supabase
-      .channel(`job:${jobId}`)
+      .channel(`job:${jobId}:${cid}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'jobs', filter: `id=eq.${jobId}` },

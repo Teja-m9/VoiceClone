@@ -27,6 +27,7 @@ def handler(event: dict) -> dict:
     inputs = inp.get("inputs", {})
     outputs = inp.get("outputs", {})
     watermark = bool(inp.get("watermark", True))
+    preview = bool(inp.get("preview", False))
 
     # Deterministic workdir keyed by job_id (idempotent: retries overwrite the same paths).
     workdir = tempfile.mkdtemp(prefix=f"job_{job_id}_")
@@ -41,8 +42,8 @@ def handler(event: dict) -> dict:
         log.info("job %s: converting voice (seed-vc)", job_id)
         converted = convert_voice(vocals, voice_ref, workdir)
 
-        log.info("job %s: remixing (ffmpeg, watermark=%s)", job_id, watermark)
-        cover = remix(converted, instrumental, watermark, workdir)
+        log.info("job %s: remixing (ffmpeg, watermark=%s preview=%s)", job_id, watermark, preview)
+        cover = remix(converted, instrumental, watermark, workdir, preview=preview)
 
         log.info("job %s: uploading output", job_id)
         upload_put(cover, outputs["audio_put_url"], "audio/mpeg")

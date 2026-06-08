@@ -1,76 +1,23 @@
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { StyleSheet, Platform } from 'react-native';
-import { palette, radius } from '@/theme';
+import { withLayoutContext } from 'expo-router';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { TabBar } from '@/components/TabBar';
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
-
-const ICONS = {
-  home: { active: 'sparkles', inactive: 'sparkles-outline' },
-  create: { active: 'mic', inactive: 'mic-outline' },
-  profile: { active: 'person', inactive: 'person-outline' },
-} satisfies Record<string, { active: IoniconName; inactive: IoniconName }>;
+// Material top tabs give finger-swipe between screens; we render our own floating bottom
+// bar via the `tabBar` prop and position it at the bottom.
+const { Navigator } = createMaterialTopTabNavigator();
+const SwipeTabs = withLayoutContext(Navigator);
 
 export default function TabsLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: palette.violet,
-        tabBarInactiveTintColor: palette.textMuted,
-        tabBarStyle: styles.bar,
-        tabBarLabelStyle: styles.label,
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-          ) : null,
-        sceneStyle: { backgroundColor: palette.bg },
-      }}
+    <SwipeTabs
+      tabBarPosition="bottom"
+      tabBar={(props) => <TabBar {...props} />}
+      screenOptions={{ swipeEnabled: true }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Discover',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={ICONS.home[focused ? 'active' : 'inactive']} size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="create"
-        options={{
-          title: 'Create',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={ICONS.create[focused ? 'active' : 'inactive']} size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'You',
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={ICONS.profile[focused ? 'active' : 'inactive']} size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      <SwipeTabs.Screen name="home" options={{ title: 'Discover' }} />
+      <SwipeTabs.Screen name="feed" options={{ title: 'Shared' }} />
+      <SwipeTabs.Screen name="create" options={{ title: 'Create' }} />
+      <SwipeTabs.Screen name="profile" options={{ title: 'You' }} />
+    </SwipeTabs>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    position: 'absolute',
-    borderTopWidth: 1,
-    borderTopColor: palette.borderSoft,
-    backgroundColor: Platform.OS === 'ios' ? 'transparent' : palette.bgElevated,
-    height: 78,
-    paddingTop: 8,
-    paddingBottom: 18,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-  },
-  label: { fontSize: 11, fontWeight: '600' },
-});
