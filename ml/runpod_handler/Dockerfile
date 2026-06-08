@@ -9,7 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     SEED_VC_DIR=/opt/seed-vc
 
-RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg && \
+# build-essential (gcc/g++) is needed to compile C-extension deps like webrtcvad.
+RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg build-essential && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
