@@ -5,5 +5,6 @@ pydantic-settings==2.7.1
 boto3==1.35.90
 httpx==0.28.1
 pyjwt==2.10.1
+cryptography==44.0.0
 python-multipart==0.0.20
 stripe==11.4.0
