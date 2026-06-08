@@ -1,4 +1,6 @@
 # GPU image for the RealMVP clone pipeline (Demucs + Seed-VC + FFmpeg).
+# Runpod builds from the REPO ROOT as build context, so COPY paths are repo-root-relative
+# and the Dockerfile path is set to: ml/runpod_handler/Dockerfile
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -11,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY requirements.txt .
+COPY ml/runpod_handler/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Seed-VC has no PyPI package — install from source and its deps.
@@ -21,5 +23,5 @@ RUN git clone https://github.com/Plachtaa/seed-vc.git ${SEED_VC_DIR} && \
 # Pre-warm Demucs weights into the image so cold starts don't re-download them.
 RUN python -m demucs --help >/dev/null 2>&1 || true
 
-COPY . /app
+COPY ml/runpod_handler/ /app
 CMD ["python", "handler.py"]
