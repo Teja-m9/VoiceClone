@@ -1,0 +1,17 @@
+"""Stable error codes returned in the API error envelope: {"error": {"code","message"}}."""
+from enum import StrEnum
+
+
+class ErrorCode(StrEnum):
+    VALIDATION = "VALIDATION"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    FORBIDDEN = "FORBIDDEN"
+    NOT_FOUND = "NOT_FOUND"
+    QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
+    VOICE_NOT_READY = "VOICE_NOT_READY"
+    UPLOAD_NOT_FOUND = "UPLOAD_NOT_FOUND"
+    SONG_UNAVAILABLE = "SONG_UNAVAILABLE"
+    UPSTREAM_RUNPOD = "UPSTREAM_RUNPOD"
+    UPSTREAM_S3 = "UPSTREAM_S3"
+    WEBHOOK_BAD_SIG = "WEBHOOK_BAD_SIG"
+    INTERNAL = "INTERNAL"

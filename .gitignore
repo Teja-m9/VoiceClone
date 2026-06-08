@@ -1,0 +1,29 @@
+# --- Dependencies ---
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# --- Secrets / env (NEVER commit) ---
+.env
+.env.local
+*.env
+!.env.example
+
+# --- Expo / build output ---
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+expo-env.d.ts
+
+# --- Python tooling ---
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.log
