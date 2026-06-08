@@ -1,27 +1,24 @@
-# GPU image for the RealMVP clone pipeline (Demucs + Seed-VC + FFmpeg).
-# Runpod builds from the REPO ROOT as build context, so COPY paths are repo-root-relative
-# and the Dockerfile path is set to: ml/runpod_handler/Dockerfile
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# Slim GPU image for the Auralis clone pipeline. Uses the official PyTorch CUDA base
+# (torch preinstalled, widely cached on Runpod nodes → much faster cold start than
+# building torch on top of a raw CUDA base).
+# Runpod build context = repo root; Dockerfile path = ml/runpod_handler/Dockerfile.
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
     SEED_VC_DIR=/opt/seed-vc
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3.11 python3-pip git ffmpeg && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python && \
+RUN apt-get update && apt-get install -y --no-install-recommends git ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY ml/runpod_handler/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Seed-VC has no PyPI package — install from source and its deps.
-RUN git clone https://github.com/Plachtaa/seed-vc.git ${SEED_VC_DIR} && \
+# Shallow-clone Seed-VC and install its deps (torch already present from the base).
+RUN git clone --depth 1 https://github.com/Plachtaa/seed-vc.git ${SEED_VC_DIR} && \
     pip install --no-cache-dir -r ${SEED_VC_DIR}/requirements.txt
-
-# Pre-warm Demucs weights into the image so cold starts don't re-download them.
-RUN python -m demucs --help >/dev/null 2>&1 || true
 
 COPY ml/runpod_handler/ /app
 CMD ["python", "handler.py"]
