@@ -35,7 +35,14 @@ def create_app() -> FastAPI:
         log.exception("unhandled error: %s", exc)
         return JSONResponse(
             status_code=500,
-            content={"error": {"code": ErrorCode.INTERNAL.value, "message": "Internal error"}},
+            content={
+                "error": {
+                    "code": ErrorCode.INTERNAL.value,
+                    "message": "Internal error",
+                    # TEMP debug detail — revert to hide once the integration is verified.
+                    "details": {"type": type(exc).__name__, "detail": str(exc)[:300]},
+                }
+            },
         )
 
     return app
