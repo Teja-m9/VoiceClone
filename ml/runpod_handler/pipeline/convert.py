@@ -37,13 +37,13 @@ def convert_voice(vocal_stem: str, voice_ref: str, workdir: str) -> str:
 
     voice_ref = _clean_reference(voice_ref, workdir)
 
-    cmd = [
+    base = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),
         "--source", vocal_stem,
         "--target", voice_ref,
         "--output", out_dir,
-        # More diffusion steps → closer timbre match to the user's voice.
-        "--diffusion-steps", "50",
+        # More diffusion steps → cleaner, closer timbre match to the user's voice.
+        "--diffusion-steps", "60",
         # Preserve the song's exact melody AND key. auto-f0-adjust is OFF on purpose:
         # turning it on re-pitches the vocal toward the user's speaking range, which pulls
         # it OUT of the instrumental's key and makes voice + music clash. Off → the cloned
@@ -52,7 +52,17 @@ def convert_voice(vocal_stem: str, voice_ref: str, workdir: str) -> str:
         "--auto-f0-adjust", "False",
         "--semi-tone-shift", "0",
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=config.seed_vc_dir)
+    # Stronger classifier-free guidance pushes the output HARD toward the user's voice and
+    # strips the original singer's residual timbre — fixes the "blend of two voices" sound.
+    # If this build's inference.py doesn't accept the flag, fall back to the base args so the
+    # job still succeeds instead of failing on an unrecognized argument.
+    strong = base + ["--inference-cfg-rate", "1.0"]
+
+    proc = subprocess.run(strong, capture_output=True, text=True, cwd=config.seed_vc_dir)
+    if proc.returncode != 0 and (
+        "inference-cfg-rate" in proc.stderr or "unrecognized arguments" in proc.stderr.lower()
+    ):
+        proc = subprocess.run(base, capture_output=True, text=True, cwd=config.seed_vc_dir)
     if proc.returncode != 0:
         raise ConversionError(f"seed-vc failed: {proc.stderr[-500:]}")
 
