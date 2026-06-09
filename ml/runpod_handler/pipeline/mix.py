@@ -9,11 +9,12 @@ import subprocess
 class MixError(RuntimeError):
     pass
 
-# Loudness targets (LUFS). The cloned vocal sits a touch above the instrumental so the
-# voice is clear but still blends with the music (a "medium" balance — not blasting, not
-# buried). Widen the gap (lower INSTRUMENTAL_LUFS) for a louder vocal, narrow it to blend more.
-VOCAL_LUFS = "-15"
-INSTRUMENTAL_LUFS = "-18"
+# Loudness targets (LUFS). Vocal and instrumental sit at the SAME level so the cloned
+# voice merges into the background track rather than sitting loudly on top of it. Lower
+# VOCAL_LUFS (e.g. -17) to push the voice further back into the mix; raise it for a more
+# upfront lead vocal.
+VOCAL_LUFS = "-16"
+INSTRUMENTAL_LUFS = "-16"
 
 
 def _run(cmd: list[str]) -> None:
@@ -49,7 +50,7 @@ def remix(
         f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
         "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
         "dynaudnorm=f=250:g=4,"
-        "aecho=0.8:0.85:45:0.12[v];"
+        "aecho=0.8:0.85:45:0.18[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 
