@@ -49,11 +49,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   experiments: { typedRoutes: true },
+  owner: 'shivaram990',
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
     saavnApiUrl: process.env.EXPO_PUBLIC_SAAVN_API_URL,
     router: { origin: false },
+    eas: { projectId: 'b6802d82-741b-4768-a3c5-7667b2e58da6' },
   },
 });
