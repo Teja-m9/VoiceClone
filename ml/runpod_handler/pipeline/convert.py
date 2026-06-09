@@ -42,9 +42,14 @@ def convert_voice(vocal_stem: str, voice_ref: str, workdir: str) -> str:
         "--source", vocal_stem,
         "--target", voice_ref,
         "--output", out_dir,
-        "--diffusion-steps", "30",
-        "--f0-condition", "True",      # preserve melody/pitch for singing
-        "--auto-f0-adjust", "True",
+        # More diffusion steps → closer timbre match to the user's voice.
+        "--diffusion-steps", "50",
+        # Preserve the song's exact melody AND key. auto-f0-adjust is OFF on purpose:
+        # turning it on re-pitches the vocal toward the user's speaking range, which pulls
+        # it OUT of the instrumental's key and makes voice + music clash. Off → the cloned
+        # vocal stays in the song's original pitch, so it sits in tune with the music.
+        "--f0-condition", "True",
+        "--auto-f0-adjust", "False",
         "--semi-tone-shift", "0",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, cwd=config.seed_vc_dir)
