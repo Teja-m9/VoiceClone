@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -11,6 +13,7 @@ import Animated, {
   withRepeat,
   withTiming,
   cancelAnimation,
+  runOnJS,
   Easing,
   FadeIn,
 } from 'react-native-reanimated';
@@ -49,6 +52,11 @@ export default function PlaybackScreen() {
   const [published, setPublished] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [previewEnded, setPreviewEnded] = useState(false);
+  const [saved, setSaved] = useState(false);
+  // Seek/scrub: live drag fraction (null when not dragging) + a ref to the current total.
+  const [scrubFrac, setScrubFrac] = useState<number | null>(null);
+  const trackW = useSharedValue(0);
+  const totalRef = useRef(0);
 
   const player = useAudioPlayer();
   const status = useAudioPlayerStatus(player);
@@ -140,16 +148,23 @@ export default function PlaybackScreen() {
     }
   };
 
-  // Save the generated cover to the device (via the system save/share sheet → "Save to Files").
+  // Download the mp3 straight onto the device (saved to the Music/media library). Falls
+  // back to the system save sheet if the user denies storage permission.
   const onDownload = async () => {
     if (!job?.output_audio_url) return;
     setError(null);
     try {
       const safe = (params.title || 'cover').replace(/[^a-z0-9]+/gi, '_').slice(0, 40);
-      const target = `${FileSystem.documentDirectory}Auralis-${safe}.mp3`;
+      const target = `${FileSystem.cacheDirectory}Auralis-${safe}.mp3`;
       const { uri } = await FileSystem.downloadAsync(job.output_audio_url, target);
-      if (await Sharing.isAvailableAsync()) {
+      const perm = await MediaLibrary.requestPermissionsAsync();
+      if (perm.granted) {
+        await MediaLibrary.createAssetAsync(uri); // → saved to the device's music/media
+        setSaved(true);
+      } else if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'audio/mpeg', dialogTitle: 'Save your cover' });
+      } else {
+        setError('Storage permission is needed to save the file.');
       }
     } catch {
       setError('Could not download the cover.');
@@ -168,6 +183,21 @@ export default function PlaybackScreen() {
 
   const total = isPremium ? status.duration || 0 : Math.min(status.duration || 0, PREVIEW_SECONDS);
   const pct = total > 0 ? Math.min(1, status.currentTime / total) : 0;
+  totalRef.current = total;
+
+  // Drag-to-seek: while dragging show the dragged position; on release jump the audio there.
+  const onScrubMove = (f: number) => setScrubFrac(f);
+  const onScrubEnd = (f: number) => {
+    if (totalRef.current > 0) player.seekTo(f * totalRef.current);
+    setPreviewEnded(false);
+    setScrubFrac(null);
+  };
+  const seekGesture = Gesture.Pan()
+    .minDistance(0)
+    .onBegin((e) => runOnJS(onScrubMove)(Math.max(0, Math.min(1, e.x / (trackW.value || 1)))))
+    .onUpdate((e) => runOnJS(onScrubMove)(Math.max(0, Math.min(1, e.x / (trackW.value || 1)))))
+    .onEnd((e) => runOnJS(onScrubEnd)(Math.max(0, Math.min(1, e.x / (trackW.value || 1)))));
+  const shownFrac = scrubFrac ?? pct;
 
   return (
     <Screen scroll>
@@ -206,16 +236,30 @@ export default function PlaybackScreen() {
         </Text>
       </View>
 
-      {/* Progress */}
+      {/* Progress — draggable to scrub */}
       <View style={styles.progressWrap}>
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${pct * 100}%` }]}>
-            <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+        <GestureDetector gesture={seekGesture}>
+          <View
+            style={styles.touchTrack}
+            onLayout={(e) => (trackW.value = e.nativeEvent.layout.width)}
+          >
+            <View style={styles.track}>
+              <View style={[styles.fill, { width: `${shownFrac * 100}%` }]}>
+                <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              </View>
+            </View>
+            <View
+              style={[
+                styles.thumb,
+                { left: `${shownFrac * 100}%` },
+                scrubFrac !== null && styles.thumbActive,
+              ]}
+            />
           </View>
-        </View>
+        </GestureDetector>
         <View style={styles.times}>
           <Text variant="caption" color={palette.textMuted}>
-            {fmt(status.currentTime || 0)}
+            {fmt((scrubFrac !== null ? shownFrac * total : status.currentTime) || 0)}
           </Text>
           <Text variant="caption" color={palette.textMuted}>
             {isPremium ? fmt(status.duration || 0) : '0:30'}
@@ -274,7 +318,12 @@ export default function PlaybackScreen() {
           loading={publishing}
           disabled={published}
         />
-        <GradientButton label="⬇  Download" variant="outline" onPress={onDownload} />
+        <GradientButton
+          label={saved ? '✓  Saved to device' : '⬇  Download'}
+          variant="outline"
+          onPress={onDownload}
+          disabled={saved}
+        />
         <GradientButton label="Make another" variant="outline" onPress={() => router.replace('/(tabs)/create')} />
       </View>
     </Screen>
@@ -327,8 +376,20 @@ const styles = StyleSheet.create({
   },
   titleWrap: { alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xl },
   progressWrap: { marginBottom: spacing.xl },
+  touchTrack: { height: 28, justifyContent: 'center' }, // tall hit area for easy dragging
   track: { height: 6, borderRadius: 3, backgroundColor: palette.surfaceAlt, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  thumb: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginLeft: -8,
+    backgroundColor: palette.violet,
+    borderWidth: 2,
+    borderColor: palette.surface,
+  },
+  thumbActive: { transform: [{ scale: 1.4 }] },
   times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   controls: {
     flexDirection: 'row',

@@ -18,9 +18,24 @@ class ConversionError(RuntimeError):
     pass
 
 
+def _clean_reference(voice_ref: str, workdir: str) -> str:
+    """Isolate the user's voice from their recording before cloning: band-limit to the
+    speech range, FFT-denoise the background (room/traffic/hiss), and level it. A clean
+    reference makes the clone sound like the user — not the noise they recorded in."""
+    cleaned = os.path.join(workdir, "voice_ref_clean.wav")
+    flt = "highpass=f=80,lowpass=f=11000,afftdn=nr=24:nf=-28,dynaudnorm=f=200:g=5"
+    proc = subprocess.run(
+        ["ffmpeg", "-y", "-i", voice_ref, "-af", flt, "-ar", "22050", "-ac", "1", cleaned],
+        capture_output=True, text=True,
+    )
+    return cleaned if proc.returncode == 0 and os.path.exists(cleaned) else voice_ref
+
+
 def convert_voice(vocal_stem: str, voice_ref: str, workdir: str) -> str:
     out_dir = os.path.join(workdir, "converted")
     os.makedirs(out_dir, exist_ok=True)
+
+    voice_ref = _clean_reference(voice_ref, workdir)
 
     cmd = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),

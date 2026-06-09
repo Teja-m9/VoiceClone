@@ -50,6 +50,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-font',
     'expo-web-browser',
     [
+      'expo-media-library',
+      {
+        savePhotosPermission: 'Auralis saves your finished covers to your device.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         image: './assets/splash-icon.png',

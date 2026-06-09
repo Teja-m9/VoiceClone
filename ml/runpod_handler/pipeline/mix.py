@@ -9,11 +9,11 @@ import subprocess
 class MixError(RuntimeError):
     pass
 
-# Loudness targets (LUFS). The cloned vocal is normalized HOTTER than the instrumental so
-# the voice sits clearly on top instead of being buried under the music. Widen the gap
-# (lower INSTRUMENTAL_LUFS) if vocals still feel quiet.
-VOCAL_LUFS = "-12"
-INSTRUMENTAL_LUFS = "-20"
+# Loudness targets (LUFS). The cloned vocal sits a touch above the instrumental so the
+# voice is clear but still blends with the music (a "medium" balance — not blasting, not
+# buried). Widen the gap (lower INSTRUMENTAL_LUFS) for a louder vocal, narrow it to blend more.
+VOCAL_LUFS = "-15"
+INSTRUMENTAL_LUFS = "-18"
 
 
 def _run(cmd: list[str]) -> None:
@@ -33,12 +33,14 @@ def remix(
     # Free tier → trim the output to a 30s preview; premium → full track.
     trim = ["-t", "30"] if preview else []
 
-    # Normalize each stem so the vocal is consistently prominent, and compress the vocal so
-    # its quiet moments are lifted (fixes the voice "dropping out" under the music).
+    # Clean + level the cloned vocal: FFT denoise removes hiss/artifacts (the stray "beep"
+    # buzz), a gentle compressor lifts quiet moments so it never drops out, and loudnorm sets
+    # it a touch above the instrumental for a balanced, blended mix.
     balance = (
-        f"[0:a]loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
-        "acompressor=threshold=-20dB:ratio=4:attack=15:release=250:makeup=3,"
-        "dynaudnorm=f=200:g=5[v];"
+        f"[0:a]afftdn=nr=12:nf=-30,highpass=f=70,"
+        f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
+        "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
+        "dynaudnorm=f=250:g=4[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 
@@ -47,8 +49,8 @@ def remix(
         filter_complex = (
             balance
             + "[v][m]amix=inputs=2:duration=longest:normalize=0[mix];"
-            "sine=frequency=1000:duration=0.15[b];"
-            "[b]aloop=loop=-1:size=2.4e6,volume=0.05[wm];"
+            "sine=frequency=1000:duration=0.12[b];"
+            "[b]aloop=loop=-1:size=2.4e6,volume=0.018[wm];"
             "[mix][wm]amix=inputs=2:duration=first:normalize=0,loudnorm=I=-14:TP=-1.5[out]"
         )
     else:
