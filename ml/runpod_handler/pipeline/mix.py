@@ -33,30 +33,42 @@ def remix(
     # Free tier → trim the output to a 30s preview; premium → full track.
     trim = ["-t", "30"] if preview else []
 
-    # Clean + level the cloned vocal: FFT denoise removes hiss/artifacts (the stray "beep"
-    # buzz), a gentle compressor lifts quiet moments so it never drops out, and loudnorm sets
-    # it a touch above the instrumental for a balanced, blended mix.
+    # Studio-style vocal chain so the cloned voice sounds *produced* and sits inside the song
+    # instead of pasted on top:
+    #   afftdn         — remove hiss/artifacts (kills the stray "beep" buzz)
+    #   highpass       — clear low-end rumble out of the vocal
+    #   equalizer/treble — tame mud (~250Hz), add presence (~3kHz) + air (~9kHz) like a mixed vocal
+    #   loudnorm       — sit a touch above the instrumental (balanced, blended)
+    #   acompressor + dynaudnorm — even, never-dropping level
+    #   aecho          — a subtle room so the vocal shares the song's space (not bone-dry)
     balance = (
         f"[0:a]afftdn=nr=12:nf=-30,highpass=f=70,"
+        "equalizer=f=250:width_type=o:w=1:g=-2,"
+        "equalizer=f=3000:width_type=o:w=1:g=2,"
+        "treble=g=2:f=9000,"
         f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
         "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
-        "dynaudnorm=f=250:g=4[v];"
+        "dynaudnorm=f=250:g=4,"
+        "aecho=0.8:0.85:45:0.12[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 
+    # Final master: glue the mix and limit peaks so the whole track sounds finished/loud.
+    master = "loudnorm=I=-14:TP=-1.5,alimiter=limit=0.95"
+
     if watermark:
-        # Vocal-over-music balance, then a faint 1kHz attribution tone, then final loudnorm.
+        # Vocal-over-music balance, then a faint 1kHz attribution tone, then final master.
         filter_complex = (
             balance
             + "[v][m]amix=inputs=2:duration=longest:normalize=0[mix];"
             "sine=frequency=1000:duration=0.12[b];"
             "[b]aloop=loop=-1:size=2.4e6,volume=0.018[wm];"
-            "[mix][wm]amix=inputs=2:duration=first:normalize=0,loudnorm=I=-14:TP=-1.5[out]"
+            f"[mix][wm]amix=inputs=2:duration=first:normalize=0,{master}[out]"
         )
     else:
         filter_complex = (
             balance
-            + "[v][m]amix=inputs=2:duration=longest:normalize=0,loudnorm=I=-14:TP=-1.5[out]"
+            + f"[v][m]amix=inputs=2:duration=longest:normalize=0,{master}[out]"
         )
 
     cmd = [
