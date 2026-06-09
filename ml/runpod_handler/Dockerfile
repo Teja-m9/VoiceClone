@@ -17,9 +17,15 @@ WORKDIR /app
 COPY ml/runpod_handler/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Shallow-clone Seed-VC and install its deps (torch already present from the base).
+# Shallow-clone Seed-VC and install ONLY inference deps. We strip out:
+#  - torch/torchvision/torchaudio  → already in the base (and the right cu121 build;
+#    reinstalling re-downloaded ~800MB and replaced the GPU build)
+#  - gradio / FreeSimpleGUI / sounddevice  → web/desktop UI + local audio I/O, unused headless
+# This roughly halves the image so the worker can actually pull & boot.
 RUN git clone --depth 1 https://github.com/Plachtaa/seed-vc.git ${SEED_VC_DIR} && \
-    pip install --no-cache-dir -r ${SEED_VC_DIR}/requirements.txt
+    grep -viE '^(torch|torchvision|torchaudio|gradio|freesimplegui|sounddevice)([=<>~! ]|$)' \
+        ${SEED_VC_DIR}/requirements.txt > /tmp/seedvc-req.txt && \
+    pip install --no-cache-dir -r /tmp/seedvc-req.txt
 
 COPY ml/runpod_handler/ /app
 CMD ["python", "handler.py"]
