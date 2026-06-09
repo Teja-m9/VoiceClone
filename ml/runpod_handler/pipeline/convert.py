@@ -48,8 +48,10 @@ def convert_voice(
         "--source", vocal_stem,
         "--target", voice_ref,
         "--output", out_dir,
-        # More diffusion steps → cleaner, closer timbre match to the user's voice.
-        "--diffusion-steps", "60",
+        # 30 steps is Seed-VC's recommended setting for singing — good quality and ~2x
+        # faster than 60 (a full song at 60 steps was slow enough to look stuck). The big
+        # voice-match win comes from cfg-rate=1.0 below, not from piling on steps.
+        "--diffusion-steps", "30",
         # Preserve the song's exact melody AND key. auto-f0-adjust is OFF on purpose:
         # turning it on re-pitches the vocal toward the user's speaking range, which pulls
         # it OUT of the instrumental's key and makes voice + music clash. Off → the cloned
