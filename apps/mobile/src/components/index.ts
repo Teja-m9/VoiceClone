@@ -1,6 +1,7 @@
 export { Text } from './Text';
 export { Mark } from './Mark';
 export { Screen } from './Screen';
+export { SplashScreen } from './SplashScreen';
 export { AnimatedBackground } from './AnimatedBackground';
 export { GradientButton } from './GradientButton';
 export { BentoCard } from './BentoCard';

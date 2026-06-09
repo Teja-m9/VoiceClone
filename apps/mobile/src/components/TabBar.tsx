@@ -11,8 +11,9 @@ type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const ICONS: Record<string, { active: IoniconName; inactive: IoniconName }> = {
   home: { active: 'sparkles', inactive: 'sparkles-outline' },
-  feed: { active: 'people', inactive: 'people-outline' },
   create: { active: 'add-circle', inactive: 'add-circle-outline' },
+  songs: { active: 'musical-notes', inactive: 'musical-notes-outline' },
+  feed: { active: 'people', inactive: 'people-outline' },
   profile: { active: 'person', inactive: 'person-outline' },
 };
 
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
     backgroundColor: palette.surface,
     borderRadius: radius.pill,
     borderWidth: 1,
@@ -110,12 +111,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: 44,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
   },
   itemActive: {
     backgroundColor: palette.lime,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
-  itemLabel: { marginLeft: spacing.sm },
+  itemLabel: { marginLeft: 6 },
 });

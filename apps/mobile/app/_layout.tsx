@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { View, ActivityIndicator } from 'react-native';
 import 'react-native-reanimated';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { SplashScreen } from '@/components';
 import { palette } from '@/theme';
 
 /**
@@ -15,6 +15,13 @@ function AuthGate() {
   const { session, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  // Keep the branded splash up for a short minimum so it's actually seen.
+  const [minSplashDone, setMinSplashDone] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMinSplashDone(true), 1600);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -26,12 +33,8 @@ function AuthGate() {
     }
   }, [session, loading, segments, router]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: palette.bg, justifyContent: 'center' }}>
-        <ActivityIndicator color={palette.violet} size="large" />
-      </View>
-    );
+  if (loading || !minSplashDone) {
+    return <SplashScreen />;
   }
 
   return (

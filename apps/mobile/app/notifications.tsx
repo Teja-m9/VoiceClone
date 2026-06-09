@@ -29,6 +29,14 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { items, unreadCount, markRead, markAllRead } = useNotifications();
 
+  const onOpen = (n: (typeof items)[number]) => {
+    if (!n.read_at) void markRead(n.id);
+    // A finished cover → open the listen/share page for that job.
+    if (n.type === 'job_done' && n.job_id) {
+      router.push({ pathname: '/playback/[jobId]', params: { jobId: n.job_id } });
+    }
+  };
+
   return (
     <Screen scroll>
       <View style={styles.head}>
@@ -66,7 +74,7 @@ export default function NotificationsScreen() {
                 key={n.id}
                 entering={FadeInDown.delay(Math.min(i, 8) * motion.stagger).duration(motion.duration.base)}
               >
-                <Pressable onPress={() => !n.read_at && markRead(n.id)}>
+                <Pressable onPress={() => onOpen(n)}>
                   <View style={[styles.row, !n.read_at && styles.rowUnread]}>
                     <View style={[styles.iconWrap, { borderColor: meta.color }]}>
                       <Ionicons name={meta.name} size={20} color={meta.color} />
@@ -82,6 +90,7 @@ export default function NotificationsScreen() {
                       )}
                       <Text variant="caption" color={palette.textMuted}>
                         {timeAgo(n.created_at)}
+                        {n.type === 'job_done' && n.job_id ? '  ·  Tap to listen ▸' : ''}
                       </Text>
                     </View>
                     {!n.read_at && <View style={styles.dot} />}

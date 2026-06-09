@@ -15,8 +15,9 @@ export default function TabsLayout() {
       screenOptions={{ swipeEnabled: true }}
     >
       <SwipeTabs.Screen name="home" options={{ title: 'Discover' }} />
-      <SwipeTabs.Screen name="feed" options={{ title: 'Shared' }} />
       <SwipeTabs.Screen name="create" options={{ title: 'Create' }} />
+      <SwipeTabs.Screen name="songs" options={{ title: 'Songs' }} />
+      <SwipeTabs.Screen name="feed" options={{ title: 'Shared' }} />
       <SwipeTabs.Screen name="profile" options={{ title: 'You' }} />
     </SwipeTabs>
   );
