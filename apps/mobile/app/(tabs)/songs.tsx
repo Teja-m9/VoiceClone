@@ -1,4 +1,4 @@
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +8,17 @@ import { useMySongs, type MySong } from '@/hooks/useMySongs';
 import { useProfile } from '@/hooks/useProfile';
 import { gradients, palette, radius, shadow, spacing, motion } from '@/theme';
 
-function MySongCard({ item, index, onPress }: { item: MySong; index: number; onPress: (i: MySong) => void }) {
+function MySongCard({
+  item,
+  index,
+  onPress,
+  onDelete,
+}: {
+  item: MySong;
+  index: number;
+  onPress: (i: MySong) => void;
+  onDelete: (i: MySong) => void;
+}) {
   const title = item.track?.title ?? 'My cover';
   const artist = item.track?.artist ?? 'in your voice';
   return (
@@ -25,6 +35,14 @@ function MySongCard({ item, index, onPress }: { item: MySong; index: number; onP
               <Ionicons name="musical-note" size={26} color={palette.textInverse} />
             </LinearGradient>
           )}
+          <Pressable
+            onPress={() => onDelete(item)}
+            hitSlop={10}
+            style={styles.deleteBadge}
+            accessibilityLabel={`Delete ${title}`}
+          >
+            <Ionicons name="trash" size={15} color={palette.textInverse} />
+          </Pressable>
           <View style={styles.playBadge}>
             <Ionicons name="play" size={16} color={palette.textInverse} />
           </View>
@@ -42,7 +60,7 @@ function MySongCard({ item, index, onPress }: { item: MySong; index: number; onP
 
 export default function MySongsScreen() {
   const router = useRouter();
-  const { items, loading } = useMySongs();
+  const { items, loading, remove } = useMySongs();
   const { isPremium } = useProfile();
 
   const open = (i: MySong) =>
@@ -55,6 +73,12 @@ export default function MySongsScreen() {
         cover: i.track?.coverUrl ?? '',
       },
     });
+
+  const confirmDelete = (i: MySong) =>
+    Alert.alert('Delete this cover?', i.track?.title ?? 'This cover', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void remove(i.jobId) },
+    ]);
 
   return (
     <Screen scroll>
@@ -88,7 +112,7 @@ export default function MySongsScreen() {
       ) : (
         <View style={styles.grid}>
           {items.map((it, i) => (
-            <MySongCard key={it.jobId} item={it} index={i} onPress={open} />
+            <MySongCard key={it.jobId} item={it} index={i} onPress={open} onDelete={confirmDelete} />
           ))}
         </View>
       )}
@@ -117,6 +141,17 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     backgroundColor: palette.violet,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(11,11,18,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },

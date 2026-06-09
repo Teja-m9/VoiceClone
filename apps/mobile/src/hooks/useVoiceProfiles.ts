@@ -54,6 +54,12 @@ export function useVoiceProfiles() {
     };
   }, [userId, refresh]);
 
+  // Delete a voice (and, via the DB cascade, the covers made with it).
+  const remove = useCallback(async (id: string) => {
+    setProfiles((prev) => prev.filter((p) => p.id !== id)); // optimistic
+    await supabase.from('voice_profiles').delete().eq('id', id);
+  }, []);
+
   const readyProfiles = profiles.filter((p) => p.status === 'ready');
-  return { profiles, readyProfiles, loading, refresh };
+  return { profiles, readyProfiles, loading, refresh, remove };
 }

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, View, Pressable } from 'react-native';
+import { Alert, StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -16,7 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { session, signOut } = useAuth();
   const { profile, isPremium, quotaRemaining, quotaTotal } = useProfile();
-  const { profiles } = useVoiceProfiles();
+  const { profiles, remove: removeVoice } = useVoiceProfiles();
   const { items: mySongs } = useMySongs();
   const { items: published } = usePublishedCovers();
   const myPublished = published.filter((p) => p.user_id === session?.user.id).length;
@@ -34,6 +34,12 @@ export default function ProfileScreen() {
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name]) => name);
   }, [mySongs]);
+
+  const confirmDeleteVoice = (id: string, name: string) =>
+    Alert.alert('Delete this voice?', `"${name}" and the covers made with it will be removed.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void removeVoice(id) },
+    ]);
 
   return (
     <Screen scroll>
@@ -168,6 +174,13 @@ export default function ProfileScreen() {
                     {vp.status === 'ready' ? 'Ready to sing' : `Status: ${vp.status}`}
                   </Text>
                 </View>
+                <Pressable
+                  onPress={() => confirmDeleteVoice(vp.id, vp.name)}
+                  hitSlop={10}
+                  accessibilityLabel={`Delete voice ${vp.name}`}
+                >
+                  <Ionicons name="trash-outline" size={20} color={palette.textMuted} />
+                </Pressable>
               </View>
             </BentoCard>
           ))}

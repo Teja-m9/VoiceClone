@@ -76,5 +76,11 @@ export function useMySongs() {
     };
   }, [userId, cid]);
 
-  return { items, loading };
+  // Delete a cover the user doesn't want to keep.
+  const remove = async (jobId: string) => {
+    setItems((prev) => prev.filter((i) => i.jobId !== jobId)); // optimistic
+    await supabase.from('jobs').delete().eq('id', jobId);
+  };
+
+  return { items, loading, remove };
 }
