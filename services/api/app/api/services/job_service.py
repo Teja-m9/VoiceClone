@@ -58,16 +58,20 @@ async def create_job(
     if not song_url:
         raise SongUnavailableError("Could not resolve the song stream")
 
-    # 4. Quota — admins bypass entirely; otherwise reserve (premium => unlimited, -1).
+    # 4. Quota — admins bypass entirely; otherwise reserve (free => daily cap,
+    #    premium => per-plan allowance: monthly 20 / quarterly 100).
     if is_admin_email(email):
         is_premium = True
     else:
         quota = await quota_service.reserve(supabase, user_id)
         if not quota.allowed:
-            raise QuotaExceededError(
-                "Daily free limit reached", details={"remaining": quota.remaining}
+            msg = (
+                "You've used all the songs in your plan for this period"
+                if quota.premium
+                else "Daily free limit reached"
             )
-        is_premium = quota.remaining == -1
+            raise QuotaExceededError(msg, details={"remaining": quota.remaining})
+        is_premium = quota.premium
 
     # 5. Insert the job row (queued).
     row = await supabase.insert(

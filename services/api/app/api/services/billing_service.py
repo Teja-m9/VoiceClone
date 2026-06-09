@@ -14,6 +14,14 @@ log = get_logger("billing_service")
 _PRICE = {"monthly": lambda: config.stripe_price_monthly, "quarterly": lambda: config.stripe_price_quarterly}
 
 
+def _quota_for_plan(plan: str) -> int:
+    """Songs granted per billing period for a plan name."""
+    return {
+        "monthly": config.premium_monthly_quota,
+        "quarterly": config.premium_quarterly_quota,
+    }.get(plan, 0)
+
+
 def _map_status(stripe_status: str) -> str:
     """Map Stripe subscription status → our sub_status_t enum."""
     if stripe_status in ("active", "trialing"):
@@ -73,7 +81,8 @@ async def handle_webhook(supabase: SupabaseClient, stripe: StripeClient, payload
     obj: dict[str, Any] = event["data"]["object"]
 
     if etype == "checkout.session.completed":
-        user_id = (obj.get("metadata") or {}).get("user_id")
+        meta = obj.get("metadata") or {}
+        user_id = meta.get("user_id")
         sub_id = obj.get("subscription")
         if user_id and sub_id:
             await _upsert_subscription(
@@ -84,7 +93,22 @@ async def handle_webhook(supabase: SupabaseClient, stripe: StripeClient, payload
                 status="active",
                 current_period_end=None,
             )
+            # Grant the plan's song allowance for this period and reset usage.
+            await supabase.update(
+                "profiles",
+                {"id": user_id},
+                {"plan_quota": _quota_for_plan(meta.get("plan", "")), "plan_used": 0},
+            )
             log.info("checkout completed user_id=%s sub=%s", user_id, sub_id)
+
+    elif etype == "invoice.payment_succeeded":
+        # Renewal → refill the period allowance (reset usage to 0).
+        if obj.get("billing_reason") == "subscription_cycle":
+            sub_id = obj.get("subscription")
+            sub = await supabase.select_one("subscriptions", {"stripe_subscription_id": sub_id}) if sub_id else None
+            if sub and sub.get("user_id"):
+                await supabase.update("profiles", {"id": sub["user_id"]}, {"plan_used": 0})
+                log.info("renewal refilled allowance user_id=%s sub=%s", sub["user_id"], sub_id)
 
     elif etype in ("customer.subscription.updated", "customer.subscription.deleted"):
         user_id = (obj.get("metadata") or {}).get("user_id")

@@ -26,6 +26,8 @@ export type ProfileRow = {
   plan: Plan;
   quota_date: string;
   quota_used: number;
+  plan_quota: number; // premium per-period song allowance (0 = none/unlimited fallback)
+  plan_used: number; // songs used this billing period
   created_at: string;
   updated_at: string;
 };
@@ -111,7 +113,7 @@ export type Database = {
     Functions: {
       reserve_quota: {
         Args: { p_user: string; p_limit: number };
-        Returns: { allowed: boolean; remaining: number }[];
+        Returns: { allowed: boolean; remaining: number; premium: boolean }[];
       };
       release_quota: {
         Args: { p_user: string };

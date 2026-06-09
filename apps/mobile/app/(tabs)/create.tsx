@@ -37,7 +37,7 @@ export default function CreateScreen() {
     }
   }, [params.trackId, selectedTrack]);
 
-  const outOfQuota = !isPremium && quotaRemaining <= 0;
+  const outOfQuota = quotaRemaining <= 0; // Infinity for unlimited; finite for free + plan caps
   const canSubmit = !!voiceId && !!selectedTrack && !outOfQuota && !submitting;
 
   const pickTrack = async (track: Track) => {
@@ -174,7 +174,7 @@ export default function CreateScreen() {
       )}
       <View style={{ marginTop: spacing.xl }}>
         <GradientButton
-          label={outOfQuota ? 'Daily limit reached' : 'Generate cover'}
+          label={outOfQuota ? (isPremium ? 'Plan limit reached' : 'Daily limit reached') : 'Generate cover'}
           onPress={onGenerate}
           loading={submitting}
           disabled={!canSubmit}

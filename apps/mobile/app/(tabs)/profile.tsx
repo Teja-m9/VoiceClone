@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,18 +8,32 @@ import { Screen, Text, BentoCard, GradientButton } from '@/components';
 import { useAuth } from '@/providers/AuthProvider';
 import { useProfile } from '@/hooks/useProfile';
 import { useVoiceProfiles } from '@/hooks/useVoiceProfiles';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useMySongs } from '@/hooks/useMySongs';
 import { usePublishedCovers } from '@/hooks/usePublishedCovers';
 import { gradients, palette, radius, spacing, motion } from '@/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { session, signOut } = useAuth();
-  const { profile, isPremium, quotaRemaining } = useProfile();
+  const { profile, isPremium, quotaRemaining, quotaTotal } = useProfile();
   const { profiles } = useVoiceProfiles();
-  const { items: notifications, unreadCount, markRead } = useNotifications();
+  const { items: mySongs } = useMySongs();
   const { items: published } = usePublishedCovers();
   const myPublished = published.filter((p) => p.user_id === session?.user.id).length;
+
+  // Interests = the artists whose songs the user has covered, most-covered first.
+  const interests = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of mySongs) {
+      const artist = s.track?.artist?.trim();
+      if (!artist) continue;
+      // an entry can list several artists ("A, B") — split so each gets credit
+      for (const a of artist.split(/,|&|feat\.?/i).map((x) => x.trim()).filter(Boolean)) {
+        counts.set(a, (counts.get(a) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name]) => name);
+  }, [mySongs]);
 
   return (
     <Screen scroll>
@@ -66,7 +81,7 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.statCell}>
           <Text variant="displayXl" style={styles.statNum}>
-            {isPremium ? '∞' : quotaRemaining}
+            {quotaRemaining === Infinity ? '∞' : quotaRemaining}
           </Text>
           <Text variant="label" color={palette.textSecondary}>
             Credits
@@ -86,7 +101,11 @@ export default function ProfileScreen() {
               {isPremium ? 'PREMIUM' : 'FREE PLAN'}
             </Text>
             <Text variant="h2">
-              {isPremium ? 'Unlimited & watermark-free' : `${quotaRemaining}/3 covers left today`}
+              {quotaRemaining === Infinity
+                ? 'Unlimited & watermark-free'
+                : isPremium
+                  ? `${quotaRemaining} of ${quotaTotal} songs left`
+                  : `${quotaRemaining}/3 covers left today`}
             </Text>
           </View>
         </View>
@@ -101,61 +120,56 @@ export default function ProfileScreen() {
         )}
       </BentoCard>
 
+      {/* Interests — learned from the songs they've covered */}
+      <Text variant="h2" style={styles.section}>
+        Your music taste
+      </Text>
+      {interests.length === 0 ? (
+        <BentoCard index={2}>
+          <Text variant="body">
+            Make a few covers and we'll learn the artists you love — they'll show up here.
+          </Text>
+        </BentoCard>
+      ) : (
+        <BentoCard index={2}>
+          <Text variant="caption" style={{ marginBottom: spacing.md }}>
+            Based on the songs you sing, you're into:
+          </Text>
+          <View style={styles.chips}>
+            {interests.map((name) => (
+              <View key={name} style={styles.chip}>
+                <Ionicons name="musical-note" size={13} color={palette.violet} />
+                <Text variant="label" color={palette.textPrimary}>
+                  {name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </BentoCard>
+      )}
+
       {/* Voices */}
       <Text variant="h2" style={styles.section}>
         Your voices
       </Text>
       {profiles.length === 0 ? (
-        <BentoCard index={2}>
+        <BentoCard index={3}>
           <Text variant="body">No voices yet. Record one from the Create tab.</Text>
         </BentoCard>
       ) : (
         <View style={styles.cardList}>
           {profiles.map((vp, i) => (
-            <BentoCard key={vp.id} index={i + 2}>
+            <BentoCard key={vp.id} index={i + 3}>
               <View style={styles.voiceRow}>
                 <Ionicons name="mic-circle" size={28} color={palette.violet} />
                 <View style={{ flex: 1 }}>
-                <Text variant="title">{vp.name}</Text>
-                <Text variant="caption">
-                  {vp.status === 'ready' ? 'Ready to sing' : `Status: ${vp.status}`}
-                </Text>
-              </View>
+                  <Text variant="title">{vp.name}</Text>
+                  <Text variant="caption">
+                    {vp.status === 'ready' ? 'Ready to sing' : `Status: ${vp.status}`}
+                  </Text>
+                </View>
               </View>
             </BentoCard>
-          ))}
-        </View>
-      )}
-
-      {/* Notifications */}
-      <View style={styles.sectionHead}>
-        <Text variant="h2">Notifications</Text>
-        {unreadCount > 0 && (
-          <View style={styles.unread}>
-            <Text variant="caption" color="#0B0B12" style={{ fontWeight: '800' }}>
-              {unreadCount} new
-            </Text>
-          </View>
-        )}
-      </View>
-      {notifications.length === 0 ? (
-        <BentoCard index={3}>
-          <Text variant="body">You're all caught up.</Text>
-        </BentoCard>
-      ) : (
-        <View style={styles.cardList}>
-          {notifications.slice(0, 8).map((n, i) => (
-            <Pressable key={n.id} onPress={() => !n.read_at && markRead(n.id)}>
-              <BentoCard index={i + 3}>
-                <View style={styles.notifRow}>
-                  <View style={[styles.notifDot, { opacity: n.read_at ? 0 : 1 }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="title">{n.title}</Text>
-                    {!!n.body && <Text variant="caption">{n.body}</Text>}
-                  </View>
-                </View>
-              </BentoCard>
-            </Pressable>
           ))}
         </View>
       )}
@@ -200,20 +214,17 @@ const styles = StyleSheet.create({
   cardList: { gap: spacing.md },
   planRow: { flexDirection: 'row', alignItems: 'center' },
   section: { marginTop: spacing.xxl, marginBottom: spacing.lg },
-  sectionHead: {
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xxl,
-    marginBottom: spacing.lg,
-  },
-  unread: {
+    gap: 6,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
     borderRadius: radius.pill,
-    backgroundColor: palette.magenta,
+    borderWidth: 1,
+    borderColor: palette.glassStroke,
+    backgroundColor: palette.bg,
   },
   voiceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  notifRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  notifDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.magenta },
 });

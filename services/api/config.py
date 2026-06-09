@@ -46,6 +46,8 @@ class Config(BaseSettings):
     # Misc
     api_base_url: str = "http://localhost:8000"
     free_daily_quota: int = 3
+    premium_monthly_quota: int = 20      # songs per period on the monthly plan
+    premium_quarterly_quota: int = 100   # songs per period on the 3-month plan
     presign_put_ttl: int = 600
     presign_get_ttl: int = 3600
     max_upload_bytes: int = 25 * 1024 * 1024

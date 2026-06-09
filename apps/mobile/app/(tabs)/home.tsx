@@ -97,9 +97,11 @@ export default function HomeScreen() {
             color={isPremium ? palette.success : palette.amber}
           />
           <Text variant="displayXl" style={styles.statNum}>
-            {isPremium ? '∞' : quotaRemaining}
+            {quotaRemaining === Infinity ? '∞' : quotaRemaining}
           </Text>
-          <Text variant="caption">{isPremium ? 'Unlimited today' : 'Covers left today'}</Text>
+          <Text variant="caption">
+            {quotaRemaining === Infinity ? 'Unlimited' : isPremium ? 'Songs left' : 'Covers left today'}
+          </Text>
         </BentoCard>
         <BentoCard
           index={3}

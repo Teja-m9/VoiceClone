@@ -33,9 +33,12 @@ def remix(
     # Free tier → trim the output to a 30s preview; premium → full track.
     trim = ["-t", "30"] if preview else []
 
-    # Normalize each stem independently so the vocal is consistently prominent over the music.
+    # Normalize each stem so the vocal is consistently prominent, and compress the vocal so
+    # its quiet moments are lifted (fixes the voice "dropping out" under the music).
     balance = (
-        f"[0:a]loudnorm=I={VOCAL_LUFS}:TP=-1.5[v];"
+        f"[0:a]loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
+        "acompressor=threshold=-20dB:ratio=4:attack=15:release=250:makeup=3,"
+        "dynaudnorm=f=200:g=5[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 

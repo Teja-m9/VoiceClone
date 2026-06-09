@@ -55,6 +55,8 @@ export const mockProfile: ProfileRow = {
   plan: 'free',
   quota_date: '2026-06-08',
   quota_used: 1,
+  plan_quota: 0,
+  plan_used: 0,
   created_at: now,
   updated_at: now,
 };

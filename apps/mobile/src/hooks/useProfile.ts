@@ -60,9 +60,13 @@ export function useProfile() {
   const isAdmin = isAdminEmail(session?.user.email);
   const isPremium = profile?.plan === 'premium' || isAdmin;
   const FREE_DAILY = 3;
-  const quotaRemaining = isPremium
-    ? Infinity
-    : Math.max(0, FREE_DAILY - (profile?.quota_used ?? 0));
 
-  return { profile, loading, isPremium, isAdmin, quotaRemaining, refresh };
+  // Free → daily cap; premium → per-plan allowance (monthly 20 / quarterly 100).
+  // Admins (and any premium with no explicit allowance) are unlimited.
+  const planQuota = profile?.plan_quota ?? 0;
+  const quotaTotal = isAdmin ? Infinity : isPremium ? (planQuota > 0 ? planQuota : Infinity) : FREE_DAILY;
+  const quotaUsed = isPremium ? profile?.plan_used ?? 0 : profile?.quota_used ?? 0;
+  const quotaRemaining = quotaTotal === Infinity ? Infinity : Math.max(0, quotaTotal - quotaUsed);
+
+  return { profile, loading, isPremium, isAdmin, quotaRemaining, quotaTotal, quotaUsed, refresh };
 }
