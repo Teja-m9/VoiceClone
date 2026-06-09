@@ -31,7 +31,13 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
     return cleaned if proc.returncode == 0 and os.path.exists(cleaned) else voice_ref
 
 
-def convert_voice(vocal_stem: str, voice_ref: str, workdir: str) -> str:
+def convert_voice(
+    vocal_stem: str,
+    voice_ref: str,
+    workdir: str,
+    checkpoint: str | None = None,
+    model_config: str | None = None,
+) -> str:
     out_dir = os.path.join(workdir, "converted")
     os.makedirs(out_dir, exist_ok=True)
 
@@ -52,6 +58,12 @@ def convert_voice(vocal_stem: str, voice_ref: str, workdir: str) -> str:
         "--auto-f0-adjust", "False",
         "--semi-tone-shift", "0",
     ]
+    # Pro Voice: load the user's fine-tuned checkpoint for a near-indistinguishable clone.
+    # Zero-shot (no checkpoint) is unchanged. See docs/PRO_VOICE.md.
+    if checkpoint:
+        base += ["--checkpoint", checkpoint]
+        if model_config:
+            base += ["--config", model_config]
     # Stronger classifier-free guidance pushes the output HARD toward the user's voice and
     # strips the original singer's residual timbre — fixes the "blend of two voices" sound.
     # If this build's inference.py doesn't accept the flag, fall back to the base args so the

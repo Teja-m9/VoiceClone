@@ -10,6 +10,10 @@ class Config(BaseSettings):
     seed_vc_dir: str = "/opt/seed-vc"
     demucs_model: str = "htdemucs"
 
+    # Pro Voice fine-tuning (see docs/PRO_VOICE.md). Validate against the pinned seed-vc repo.
+    finetune_config: str = "configs/presets/config_dit_mel_seed_uvit_whisper_small_wavenet.yml"
+    finetune_steps: int = 500
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
