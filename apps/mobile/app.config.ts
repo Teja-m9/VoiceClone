@@ -13,8 +13,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
+  icon: './assets/icon.png',
   splash: {
-    resizeMode: 'cover',
+    image: './assets/splash-icon.png',
+    resizeMode: 'contain',
     backgroundColor: '#EFEFE9',
   },
   assetBundlePatterns: ['**/*'],
@@ -29,8 +31,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'xyz.realmvp.app',
     permissions: ['RECORD_AUDIO'],
-    adaptiveIcon: { backgroundColor: '#EFEFE9' },
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#EFEFE9',
+    },
   },
+  web: { favicon: './assets/favicon.png' },
   plugins: [
     'expo-router',
     'expo-secure-store',
@@ -45,7 +51,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-web-browser',
     [
       'expo-splash-screen',
-      { backgroundColor: '#EFEFE9', resizeMode: 'cover' },
+      {
+        image: './assets/splash-icon.png',
+        imageWidth: 220,
+        resizeMode: 'contain',
+        backgroundColor: '#EFEFE9',
+      },
     ],
   ],
   experiments: { typedRoutes: true },
