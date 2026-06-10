@@ -54,7 +54,10 @@ def remix(
         # Level GENTLY so the noise floor isn't amplified (lower makeup + gentler dynaudnorm).
         f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
         "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=1,"
-        "dynaudnorm=f=400:g=2,"
+        # gentle leveling: large smoothing window (g) + LOW max-gain (m=3) so the quiet
+        # noise floor isn't boosted. NOTE: dynaudnorm g must be 3–301 (it's the window size,
+        # not a gain) — g=2 is invalid and makes ffmpeg fail.
+        "dynaudnorm=f=400:g=21:m=3,"
         "aecho=0.8:0.85:45:0.18[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
