@@ -43,13 +43,18 @@ def remix(
     #   acompressor + dynaudnorm — even, never-dropping level
     #   aecho          — a subtle room so the vocal shares the song's space (not bone-dry)
     balance = (
-        f"[0:a]afftdn=nr=12:nf=-30,highpass=f=70,"
+        # Clean first: rumble cut → strong FFT denoise → noise gate (silences the hiss in the
+        # gaps between phrases so leveling can't pump it back up).
+        "[0:a]highpass=f=80,afftdn=nr=20:nf=-25,"
+        "agate=threshold=0.015:ratio=2:attack=10:release=200,"
+        # Tone: de-mud, presence, air.
         "equalizer=f=250:width_type=o:w=1:g=-2,"
         "equalizer=f=3000:width_type=o:w=1:g=2,"
         "treble=g=2:f=9000,"
+        # Level GENTLY so the noise floor isn't amplified (lower makeup + gentler dynaudnorm).
         f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
-        "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
-        "dynaudnorm=f=250:g=4,"
+        "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=1,"
+        "dynaudnorm=f=400:g=2,"
         "aecho=0.8:0.85:45:0.18[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
