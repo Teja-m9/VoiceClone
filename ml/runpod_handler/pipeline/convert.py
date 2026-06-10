@@ -50,44 +50,45 @@ def convert_voice(
 
     voice_ref = _clean_reference(voice_ref, workdir)
 
-    base = [
+    common = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),
         "--source", vocal_stem,
         "--target", voice_ref,
         "--output", out_dir,
-        # 30 steps is Seed-VC's recommended setting for singing — good quality and ~2x
-        # faster than 60 (a full song at 60 steps was slow enough to look stuck). The big
-        # voice-match win comes from cfg-rate=1.0 below, not from piling on steps.
+        # 30 steps is Seed-VC's recommended setting for singing — good quality and fast.
         "--diffusion-steps", "30",
-        # Preserve the song's exact melody AND key. auto-f0-adjust is OFF on purpose:
-        # turning it on re-pitches the vocal toward the user's speaking range, which pulls
-        # it OUT of the instrumental's key and makes voice + music clash. Off → the cloned
-        # vocal stays in the song's original pitch, so it sits in tune with the music.
+        # Preserve the song's exact melody AND key. auto-f0-adjust is OFF on purpose so the
+        # cloned vocal stays in the song's original pitch and sits in tune with the music.
         "--f0-condition", "True",
         "--auto-f0-adjust", "False",
         "--semi-tone-shift", "0",
     ]
-    # Pro Voice: load the user's fine-tuned checkpoint for a near-indistinguishable clone.
-    # Zero-shot (no checkpoint) is unchanged. See docs/PRO_VOICE.md.
+
+    # Try variants in priority order; the FIRST that succeeds wins. A Pro checkpoint is tried
+    # first (when present), then we ALWAYS fall back to plain zero-shot — so a missing/
+    # mismatched config or a bad fine-tuned model can never break a cover.
+    # NOTE: seed-vc only honors --config when --checkpoint is given; passing a checkpoint
+    # WITHOUT a config makes it read dit_config_path=None and crash, so we always pair them.
+    variants: list[list[str]] = []
     if checkpoint:
-        base += ["--checkpoint", checkpoint]
-        if model_config:
-            base += ["--config", model_config]
-    # Stronger classifier-free guidance pushes the output HARD toward the user's voice and
-    # strips the original singer's residual timbre — fixes the "blend of two voices" sound.
-    # If this build's inference.py doesn't accept the flag, fall back to the base args so the
-    # job still succeeds instead of failing on an unrecognized argument.
-    strong = base + ["--inference-cfg-rate", "1.0"]
+        cfg = model_config or os.path.join(
+            config.seed_vc_dir, "configs/presets/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml"
+        )
+        variants.append(["--checkpoint", checkpoint, "--config", cfg, "--inference-cfg-rate", "1.0"])
+        variants.append(["--checkpoint", checkpoint, "--config", cfg])
+    # Zero-shot: strong guidance first (closest voice match), then plain defaults.
+    variants.append(["--inference-cfg-rate", "1.0"])
+    variants.append([])
 
-    proc = subprocess.run(strong, capture_output=True, text=True, cwd=config.seed_vc_dir)
-    if proc.returncode != 0 and (
-        "inference-cfg-rate" in proc.stderr or "unrecognized arguments" in proc.stderr.lower()
-    ):
-        proc = subprocess.run(base, capture_output=True, text=True, cwd=config.seed_vc_dir)
-    if proc.returncode != 0:
-        raise ConversionError(f"seed-vc failed: {proc.stderr[-500:]}")
+    last = None
+    for extra in variants:
+        last = subprocess.run(common + extra, capture_output=True, text=True, cwd=config.seed_vc_dir)
+        if last.returncode == 0:
+            break
+    if last is None or last.returncode != 0:
+        raise ConversionError(f"seed-vc failed: {(last.stderr if last else '')[-500:]}")
 
-    produced = sorted(glob.glob(os.path.join(out_dir, "*.wav")))
+    produced = glob.glob(os.path.join(out_dir, "*.wav"))
     if not produced:
         raise ConversionError("seed-vc produced no output")
-    return produced[-1]
+    return max(produced, key=os.path.getmtime)  # newest, in case a failed attempt left a stale file

@@ -15,8 +15,9 @@ class Config(BaseSettings):
     # voice. Default OFF = full conversion (the user's voice throughout). Fail-safe either way.
     selective_gender: bool = False
 
-    # Pro Voice fine-tuning (see docs/PRO_VOICE.md). Validate against the pinned seed-vc repo.
-    finetune_config: str = "configs/presets/config_dit_mel_seed_uvit_whisper_small_wavenet.yml"
+    # Pro Voice fine-tuning (see docs/PRO_VOICE.md). Validate against the seed-vc repo.
+    # Use the f0 (singing) config so a fine-tuned model matches the cover path (f0-condition).
+    finetune_config: str = "configs/presets/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml"
     finetune_steps: int = 500
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
