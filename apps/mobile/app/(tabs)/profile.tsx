@@ -16,7 +16,7 @@ import { gradients, palette, radius, spacing, motion } from '@/theme';
 export default function ProfileScreen() {
   const router = useRouter();
   const { session, signOut } = useAuth();
-  const { profile, isPremium, quotaRemaining, quotaTotal } = useProfile();
+  const { profile, isPremium, isAdmin, quotaRemaining, quotaTotal } = useProfile();
   const { profiles, remove: removeVoice } = useVoiceProfiles();
   const { items: mySongs } = useMySongs();
   const { items: published } = usePublishedCovers();
@@ -220,23 +220,15 @@ export default function ProfileScreen() {
                   )}
                 </View>
 
-                {/* Pro Voice upgrade — premium only; free users are pointed to billing. */}
-                {!isPro && !training && vp.status === 'ready' && (
+                {/* Pro Voice — in BETA/validation, admin-only so regular users don't hit the
+                    unproven training path. Flip to `isPremium` once Pro reliably beats zero-shot. */}
+                {isAdmin && !isPro && !training && vp.status === 'ready' && (
                   <View style={{ marginTop: spacing.md }}>
-                    {isPremium ? (
-                      <GradientButton
-                        label={failed ? 'Retry Pro Voice' : '⚡ Upgrade to Pro Voice'}
-                        gradient="aurora"
-                        onPress={() => void upgradeToPro(vp.id)}
-                      />
-                    ) : (
-                      <Pressable onPress={() => router.push('/billing')} style={styles.proLock}>
-                        <Ionicons name="lock-closed" size={14} color={palette.violet} />
-                        <Text variant="label" color={palette.violet}>
-                          Pro Voice is a Premium feature
-                        </Text>
-                      </Pressable>
-                    )}
+                    <GradientButton
+                      label={failed ? 'Retry Pro Voice (beta)' : '⚡ Train Pro Voice (beta)'}
+                      gradient="aurora"
+                      onPress={() => void upgradeToPro(vp.id)}
+                    />
                   </View>
                 )}
               </BentoCard>

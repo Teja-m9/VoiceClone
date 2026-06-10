@@ -19,6 +19,22 @@ from pipeline.convert import _clean_reference
 class TrainingError(RuntimeError):
     pass
 
+# Base singing (f0) model we fine-tune FROM — must match the cover inference config
+# (config_dit_mel_seed_uvit_whisper_base_f0_44k.yml). Without a pretrained base, train.py
+# starts from scratch and a few seconds of audio yields a junk model.
+_BASE_REPO = "Plachta/Seed-VC"
+_BASE_CKPT_FILE = "DiT_seed_v2_uvit_whisper_base_f0_44k_bigvgan_pruned_ft_ema_v2.pth"
+
+
+def _download_base_ckpt() -> str | None:
+    """Fetch the base f0 checkpoint into the HF cache; return its local path (or None)."""
+    try:
+        from huggingface_hub import hf_hub_download
+
+        return hf_hub_download(_BASE_REPO, _BASE_CKPT_FILE)
+    except Exception:
+        return None
+
 
 def finetune_voice(voice_ref: str, run_name: str, workdir: str) -> str:
     """Fine-tune on the user's (cleaned) voice sample → path to the trained checkpoint."""
@@ -29,27 +45,28 @@ def finetune_voice(voice_ref: str, run_name: str, workdir: str) -> str:
     os.makedirs(data_dir, exist_ok=True)
     shutil.copy(cleaned, os.path.join(data_dir, "ref.wav"))
 
-    run_dir = os.path.join(workdir, "runs", run_name)
-    os.makedirs(run_dir, exist_ok=True)
-
     cmd = [
         "python", os.path.join(config.seed_vc_dir, "train.py"),
         "--config", os.path.join(config.seed_vc_dir, config.finetune_config),
         "--dataset-dir", data_dir,
         "--run-name", run_name,
         "--max-steps", str(config.finetune_steps),
+        "--max-epochs", str(config.finetune_steps),
         "--batch-size", "2",
         "--save-every", str(config.finetune_steps),
+        "--num-workers", "0",
     ]
+    # Fine-tune FROM the base singing model (critical — otherwise it trains from scratch).
+    base_ckpt = _download_base_ckpt()
+    if base_ckpt:
+        cmd += ["--pretrained-ckpt", base_ckpt]
+
     proc = subprocess.run(cmd, capture_output=True, text=True, cwd=config.seed_vc_dir)
     if proc.returncode != 0:
         raise TrainingError(f"seed-vc train failed: {proc.stderr[-500:]}")
 
-    # Find the newest checkpoint the run produced (search the repo's run dirs + our workdir).
-    candidates = (
-        glob.glob(os.path.join(config.seed_vc_dir, "runs", run_name, "*.pth"))
-        + glob.glob(os.path.join(run_dir, "*.pth"))
-    )
+    # train.py saves checkpoints under ./runs/{run_name}/ (relative to the repo).
+    candidates = glob.glob(os.path.join(config.seed_vc_dir, "runs", run_name, "*.pth"))
     if not candidates:
         raise TrainingError("training produced no checkpoint")
     return max(candidates, key=os.path.getmtime)
