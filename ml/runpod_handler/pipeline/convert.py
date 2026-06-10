@@ -42,7 +42,7 @@ def convert_voice(
     vocal_stem: str,
     voice_ref: str,
     workdir: str,
-    checkpoint: str | None = None,
+    checkpoint: str | None = None,  # accepted for API compatibility; Pro is DISABLED below
     model_config: str | None = None,
 ) -> str:
     out_dir = os.path.join(workdir, "converted")
@@ -64,21 +64,10 @@ def convert_voice(
         "--semi-tone-shift", "0",
     ]
 
-    # Try variants in priority order; the FIRST that succeeds wins. A Pro checkpoint is tried
-    # first (when present), then we ALWAYS fall back to plain zero-shot — so a missing/
-    # mismatched config or a bad fine-tuned model can never break a cover.
-    # NOTE: seed-vc only honors --config when --checkpoint is given; passing a checkpoint
-    # WITHOUT a config makes it read dit_config_path=None and crash, so we always pair them.
-    variants: list[list[str]] = []
-    if checkpoint:
-        cfg = model_config or os.path.join(
-            config.seed_vc_dir, "configs/presets/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml"
-        )
-        variants.append(["--checkpoint", checkpoint, "--config", cfg, "--inference-cfg-rate", "1.0"])
-        variants.append(["--checkpoint", checkpoint, "--config", cfg])
-    # Zero-shot: strong guidance first (closest voice match), then plain defaults.
-    variants.append(["--inference-cfg-rate", "1.0"])
-    variants.append([])
+    # Pro Voice (fine-tuned checkpoint) is DISABLED — the trained models produced poor output.
+    # Always use the reliable zero-shot path: cleanest voice, fully the user's timbre
+    # (cfg-rate=1.0), pitch-matched to the song. Plain defaults as a safety fallback.
+    variants: list[list[str]] = [["--inference-cfg-rate", "1.0"], []]
 
     last = None
     for extra in variants:
