@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Alert, StyleSheet, View, Pressable } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useVoiceProfiles } from '@/hooks/useVoiceProfiles';
 import { useMySongs } from '@/hooks/useMySongs';
 import { usePublishedCovers } from '@/hooks/usePublishedCovers';
+import { api } from '@/lib/api';
 import { gradients, palette, radius, spacing, motion } from '@/theme';
 
 export default function ProfileScreen() {
@@ -40,6 +41,18 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => void removeVoice(id) },
     ]);
+
+  const upgradeToPro = async (id: string) => {
+    try {
+      await api.trainVoice(id); // status flips to 'training' → 'ready' live via realtime
+      Alert.alert(
+        'Pro Voice started ⚡',
+        "We're fine-tuning a high-fidelity model on your voice. It takes a few minutes — the voice will be marked Pro automatically when it's ready.",
+      );
+    } catch (e) {
+      Alert.alert('Could not start', e instanceof Error ? e.message : 'Please try again.');
+    }
+  };
 
   return (
     <Screen scroll>
@@ -164,26 +177,71 @@ export default function ProfileScreen() {
         </BentoCard>
       ) : (
         <View style={styles.cardList}>
-          {profiles.map((vp, i) => (
-            <BentoCard key={vp.id} index={i + 3}>
-              <View style={styles.voiceRow}>
-                <Ionicons name="mic-circle" size={28} color={palette.violet} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="title">{vp.name}</Text>
-                  <Text variant="caption">
-                    {vp.status === 'ready' ? 'Ready to sing' : `Status: ${vp.status}`}
-                  </Text>
+          {profiles.map((vp, i) => {
+            const isPro = vp.tier === 'pro';
+            const training = vp.training_status === 'training';
+            const failed = vp.training_status === 'failed';
+            const caption = training
+              ? 'Fine-tuning your Pro Voice…'
+              : isPro
+                ? 'Pro Voice · highest fidelity'
+                : failed
+                  ? 'Pro training failed — tap retry'
+                  : vp.status === 'ready'
+                    ? 'Ready to sing'
+                    : `Status: ${vp.status}`;
+            return (
+              <BentoCard key={vp.id} index={i + 3}>
+                <View style={styles.voiceRow}>
+                  <Ionicons name="mic-circle" size={28} color={isPro ? palette.success : palette.violet} />
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.voiceNameRow}>
+                      <Text variant="title">{vp.name}</Text>
+                      {isPro && (
+                        <View style={styles.proBadge}>
+                          <Text variant="caption" color={palette.textInverse} style={styles.proBadgeText}>
+                            PRO
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text variant="caption">{caption}</Text>
+                  </View>
+                  {training ? (
+                    <ActivityIndicator color={palette.violet} />
+                  ) : (
+                    <Pressable
+                      onPress={() => confirmDeleteVoice(vp.id, vp.name)}
+                      hitSlop={10}
+                      accessibilityLabel={`Delete voice ${vp.name}`}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={palette.textMuted} />
+                    </Pressable>
+                  )}
                 </View>
-                <Pressable
-                  onPress={() => confirmDeleteVoice(vp.id, vp.name)}
-                  hitSlop={10}
-                  accessibilityLabel={`Delete voice ${vp.name}`}
-                >
-                  <Ionicons name="trash-outline" size={20} color={palette.textMuted} />
-                </Pressable>
-              </View>
-            </BentoCard>
-          ))}
+
+                {/* Pro Voice upgrade — premium only; free users are pointed to billing. */}
+                {!isPro && !training && vp.status === 'ready' && (
+                  <View style={{ marginTop: spacing.md }}>
+                    {isPremium ? (
+                      <GradientButton
+                        label={failed ? 'Retry Pro Voice' : '⚡ Upgrade to Pro Voice'}
+                        gradient="aurora"
+                        onPress={() => void upgradeToPro(vp.id)}
+                      />
+                    ) : (
+                      <Pressable onPress={() => router.push('/billing')} style={styles.proLock}>
+                        <Ionicons name="lock-closed" size={14} color={palette.violet} />
+                        <Text variant="label" color={palette.violet}>
+                          Pro Voice is a Premium feature
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </BentoCard>
+            );
+          })}
         </View>
       )}
 
@@ -240,4 +298,23 @@ const styles = StyleSheet.create({
     backgroundColor: palette.bg,
   },
   voiceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  voiceNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  proBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: palette.success,
+  },
+  proBadgeText: { fontWeight: '800', fontSize: 10, letterSpacing: 1 },
+  proLock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: palette.glassStroke,
+    backgroundColor: palette.bg,
+  },
 });

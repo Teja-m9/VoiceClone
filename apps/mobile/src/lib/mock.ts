@@ -69,7 +69,7 @@ export const mockSongs: SongRow[] = [
 ];
 
 export const mockVoiceProfiles: VoiceProfileRow[] = [
-  { id: 'voice-1', user_id: DEMO_USER_ID, name: 'My voice', status: 'ready', ref_audio_key: 'demo/voice-1.m4a', duration_ms: 42000, created_at: now },
+  { id: 'voice-1', user_id: DEMO_USER_ID, name: 'My voice', status: 'ready', ref_audio_key: 'demo/voice-1.m4a', duration_ms: 42000, tier: 'zero_shot', training_status: 'none', model_key: null, model_config_key: null, created_at: now },
 ];
 
 let notifications: NotificationRow[] = [
@@ -90,6 +90,10 @@ export const mockData = {
       status: 'ready',
       ref_audio_key: `demo/${name}.m4a`,
       duration_ms: 40000,
+      tier: 'zero_shot',
+      training_status: 'none',
+      model_key: null,
+      model_config_key: null,
       created_at: now,
     };
     mockVoiceProfiles.unshift(vp);

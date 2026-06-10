@@ -30,7 +30,7 @@ def _handle_train(job_id: str, inputs: dict, outputs: dict, workdir: str) -> dic
     voice_ref = download(inputs["voice_ref_url"], f"{workdir}/voice_ref.m4a")
     checkpoint = finetune_voice(voice_ref, run_name=job_id, workdir=workdir)
     upload_put(checkpoint, outputs["model_put_url"], "application/octet-stream")
-    return {"job_id": job_id, "model_key": outputs["model_key"], "trained": True}
+    return {"job_id": job_id, "mode": "train", "model_key": outputs["model_key"], "trained": True}
 
 
 def handler(event: dict) -> dict:
@@ -96,6 +96,7 @@ def handler(event: dict) -> dict:
         log.exception("job %s failed", job_id)
         return {
             "job_id": job_id,
+            "mode": mode,  # so the webhook routes a train failure to the voice, not a job
             "failed": True,
             "error_code": type(exc).__name__,
             "error_detail": str(exc)[:500],

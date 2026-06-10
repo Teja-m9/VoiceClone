@@ -12,4 +12,8 @@ async def handle_runpod(supabase: SupabaseClient, token: str, hook: RunpodWebhoo
     (Runpod doesn't HMAC-sign webhooks), then apply the terminal transition."""
     if not hmac.compare_digest(token or "", config.runpod_webhook_secret):
         raise WebhookSignatureError("Invalid webhook token")
-    await job_service.complete_from_webhook(supabase, hook)
+    # Pro Voice training callbacks carry mode="train"; everything else is a cover job.
+    if (hook.output or {}).get("mode") == "train":
+        await job_service.complete_training_from_webhook(supabase, hook)
+    else:
+        await job_service.complete_from_webhook(supabase, hook)

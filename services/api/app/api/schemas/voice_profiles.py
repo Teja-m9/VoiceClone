@@ -14,3 +14,9 @@ class VoiceProfileResponse(ApiModel):
     ref_audio_key: str
     duration_ms: int | None
     created_at: str
+
+
+class TrainVoiceResponse(ApiModel):
+    id: str
+    tier: str
+    training_status: str

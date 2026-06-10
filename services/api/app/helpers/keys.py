@@ -27,6 +27,11 @@ def output_reel_key(user_id: str, job_id: str) -> str:
     return f"covers/{user_id}/{job_id}.mp4"
 
 
+def voice_model_key(user_id: str, voice_id: str) -> str:
+    """S3 key for a Pro Voice fine-tuned checkpoint."""
+    return f"voice_models/{user_id}/{voice_id}.pth"
+
+
 def belongs_to_user(key: str, user_id: str, prefix: str = "voice_ref") -> bool:
     """Guard against cross-tenant key injection from client-supplied keys."""
     return key.startswith(f"{prefix}/{user_id}/")

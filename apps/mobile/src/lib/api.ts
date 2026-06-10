@@ -169,6 +169,13 @@ export const api = {
     return request<{ url: string }>('/billing/checkout', { method: 'POST', body: { plan } });
   },
 
+  /** Kick off Pro Voice fine-tuning for a voice (premium). Returns training status. */
+  trainVoice: (voiceId: string) =>
+    request<{ id: string; tier: string; training_status: string }>(
+      `/voice-profiles/${voiceId}/train`,
+      { method: 'POST' },
+    ),
+
   getJob: async (jobId: string) => {
     if (SIMULATE_JOBS) {
       const job = mockJobs.get(jobId);

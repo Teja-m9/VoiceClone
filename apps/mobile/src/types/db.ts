@@ -32,6 +32,9 @@ export type ProfileRow = {
   updated_at: string;
 };
 
+export type VoiceTier = 'zero_shot' | 'pro';
+export type TrainingStatus = 'none' | 'training' | 'ready' | 'failed';
+
 export type VoiceProfileRow = {
   id: string;
   user_id: string;
@@ -39,6 +42,10 @@ export type VoiceProfileRow = {
   status: VoiceStatus;
   ref_audio_key: string;
   duration_ms: number | null;
+  tier: VoiceTier;
+  training_status: TrainingStatus;
+  model_key: string | null;
+  model_config_key: string | null;
   created_at: string;
 };
 

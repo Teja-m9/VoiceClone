@@ -94,6 +94,10 @@ async def create_job(
     voice_url = await supabase.create_signed_url("voices", vp["ref_audio_key"], config.presign_get_ttl)
     if not voice_url:
         raise UpstreamError("Could not sign the voice reference")
+    # Pro Voice: if this voice has a ready fine-tuned model, hand it to the worker.
+    model_url = None
+    if vp.get("tier") == "pro" and vp.get("training_status") == "ready" and vp.get("model_key"):
+        model_url = s3.presign_get(vp["model_key"], config.presign_get_ttl)
     payload = build_clone_job_payload(
         job_id=job_id,
         watermark=not is_premium,
@@ -102,6 +106,7 @@ async def create_job(
         song_stream_url=song_url,
         output_audio_put_url=s3.presign_put(out_key, "audio/mpeg", config.presign_get_ttl),
         output_audio_key=out_key,
+        voice_model_get_url=model_url,
     )
     # Runpod has no webhook HMAC; we authenticate via a secret token in the callback URL.
     webhook_url = f"{config.api_base_url}/webhooks/runpod?token={config.runpod_webhook_secret}"
@@ -162,6 +167,27 @@ async def complete_from_webhook(supabase: SupabaseClient, hook: RunpodWebhook) -
         await quota_service.release(supabase, job["user_id"])  # failures don't cost a credit
         await _notify(supabase, job["user_id"], NotifType.JOB_FAILED, "Cover failed",
                       "Something went wrong — try again, it won't use a credit.", job_id)
+
+
+async def complete_training_from_webhook(supabase: SupabaseClient, hook: RunpodWebhook) -> None:
+    """Finalize a Pro Voice training run. The worker sets output.job_id = the voice id
+    (training has no jobs row); we flip the voice profile to pro/ready or failed."""
+    out = hook.output or {}
+    voice_id = out.get("job_id")
+    if not voice_id:
+        log.warning("training webhook missing voice id (runpod=%s)", hook.id)
+        return
+    failed = hook.status == "FAILED" or bool(out.get("failed"))
+    if failed:
+        await supabase.update("voice_profiles", {"id": voice_id}, {"training_status": "failed"})
+        log.warning("pro voice training failed voice=%s", voice_id)
+        return
+    await supabase.update(
+        "voice_profiles",
+        {"id": voice_id},
+        {"training_status": "ready", "tier": "pro", "model_key": out.get("model_key")},
+    )
+    log.info("pro voice training ready voice=%s", voice_id)
 
 
 async def get_job(supabase: SupabaseClient, s3: S3Client, user_id: str, job_id: str) -> JobResponse:
