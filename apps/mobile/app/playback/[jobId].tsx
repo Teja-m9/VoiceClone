@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -20,6 +20,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Screen, Text, GradientButton, BentoCard } from '@/components';
 import { api, type JobOut } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { usePublishedCovers } from '@/hooks/usePublishedCovers';
 import { useProfile } from '@/hooks/useProfile';
 import { gradients, palette, radius, shadow, spacing, motion } from '@/theme';
@@ -170,6 +171,20 @@ export default function PlaybackScreen() {
       setError('Could not download the cover.');
     }
   };
+
+  const onDelete = () =>
+    Alert.alert('Delete this cover?', params.title || 'This cover', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          player.pause();
+          await supabase.from('jobs').delete().eq('id', jobId);
+          router.replace('/(tabs)/songs');
+        },
+      },
+    ]);
 
   if (loading) {
     return (
@@ -325,6 +340,12 @@ export default function PlaybackScreen() {
           disabled={saved}
         />
         <GradientButton label="Make another" variant="outline" onPress={() => router.replace('/(tabs)/create')} />
+        <Pressable onPress={onDelete} style={styles.deleteLink} hitSlop={8} accessibilityLabel="Delete this cover">
+          <Ionicons name="trash-outline" size={16} color={palette.danger} />
+          <Text variant="label" color={palette.danger}>
+            Delete this cover
+          </Text>
+        </Pressable>
       </View>
     </Screen>
   );
@@ -404,4 +425,11 @@ const styles = StyleSheet.create({
   previewCard: { marginBottom: spacing.md },
   previewRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   actions: { gap: spacing.md, marginTop: spacing.sm },
+  deleteLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+  },
 });

@@ -23,7 +23,14 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
     speech range, FFT-denoise the background (room/traffic/hiss), and level it. A clean
     reference makes the clone sound like the user — not the noise they recorded in."""
     cleaned = os.path.join(workdir, "voice_ref_clean.wav")
-    flt = "highpass=f=80,lowpass=f=11000,afftdn=nr=24:nf=-28,dynaudnorm=f=200:g=5"
+    # Stronger denoise + a low noise gate so only the user's clean voice survives (no room
+    # tone / background between words), then level it.
+    flt = (
+        "highpass=f=90,lowpass=f=11000,"
+        "afftdn=nr=30:nf=-30,"
+        "agate=threshold=0.012:ratio=2:attack=15:release=250,"
+        "dynaudnorm=f=200:g=5"
+    )
     proc = subprocess.run(
         ["ffmpeg", "-y", "-i", voice_ref, "-af", flt, "-ar", "22050", "-ac", "1", cleaned],
         capture_output=True, text=True,

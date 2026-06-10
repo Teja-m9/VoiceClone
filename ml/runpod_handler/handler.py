@@ -6,6 +6,7 @@ The return value becomes Runpod's webhook `output`; we make it carry our `job_id
 output key so the API can resolve and finalize the job. Handled failures return a `failed`
 payload (still carrying job_id) so the API can mark the job failed with a reason."""
 import logging
+import os
 import shutil
 import tempfile
 
@@ -14,6 +15,7 @@ import runpod
 from config import config
 from pipeline.convert import convert_voice
 from pipeline.finetune import finetune_voice
+from pipeline.gender import estimate_gender, selective_convert
 from pipeline.io import download, upload_put
 from pipeline.mix import probe_duration_ms, remix
 from pipeline.separate import separate_stems
@@ -62,6 +64,18 @@ def handler(event: dict) -> dict:
 
         log.info("job %s: converting voice (seed-vc, pro=%s)", job_id, bool(checkpoint))
         converted = convert_voice(vocals, voice_ref, workdir, checkpoint=checkpoint, model_config=model_config)
+
+        # Selective gender: keep the OTHER gender's vocal original; only sing the user's
+        # parts. Fail-safe — on any issue we keep the fully-converted vocal.
+        if config.selective_gender:
+            try:
+                user_gender = estimate_gender(voice_ref)
+                if user_gender in ("male", "female"):
+                    blended = os.path.join(workdir, "converted_selective.wav")
+                    converted = selective_convert(vocals, converted, user_gender, blended)
+                    log.info("job %s: selective gender applied (user=%s)", job_id, user_gender)
+            except Exception as exc:  # noqa: BLE001 — never fail a cover over this
+                log.warning("job %s: selective gender skipped (%s)", job_id, exc)
 
         log.info("job %s: remixing (ffmpeg, watermark=%s preview=%s)", job_id, watermark, preview)
         cover = remix(converted, instrumental, watermark, workdir, preview=preview)

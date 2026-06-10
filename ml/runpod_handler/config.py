@@ -9,6 +9,9 @@ class Config(BaseSettings):
     log_level: str = "INFO"
     seed_vc_dir: str = "/opt/seed-vc"
     demucs_model: str = "htdemucs"
+    # Selective gender conversion: only convert the user's-gender parts, keep the other
+    # gender's vocal original. Fail-safe — falls back to full conversion on any error.
+    selective_gender: bool = True
 
     # Pro Voice fine-tuning (see docs/PRO_VOICE.md). Validate against the pinned seed-vc repo.
     finetune_config: str = "configs/presets/config_dit_mel_seed_uvit_whisper_small_wavenet.yml"
