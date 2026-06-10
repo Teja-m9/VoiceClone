@@ -69,7 +69,11 @@ def handler(event: dict) -> dict:
         # parts. Fail-safe — on any issue we keep the fully-converted vocal.
         if config.selective_gender:
             try:
-                user_gender = estimate_gender(voice_ref)
+                # convert_voice() writes a cleaned WAV of the reference; use it (librosa
+                # reads WAV reliably, unlike the raw .m4a) to detect the user's gender.
+                clean_ref = os.path.join(workdir, "voice_ref_clean.wav")
+                ref_for_gender = clean_ref if os.path.exists(clean_ref) else voice_ref
+                user_gender = estimate_gender(ref_for_gender)
                 if user_gender in ("male", "female"):
                     blended = os.path.join(workdir, "converted_selective.wav")
                     converted = selective_convert(vocals, converted, user_gender, blended)
