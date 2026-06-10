@@ -43,21 +43,17 @@ def remix(
     #   acompressor + dynaudnorm — even, never-dropping level
     #   aecho          — a subtle room so the vocal shares the song's space (not bone-dry)
     balance = (
-        # Clean first: rumble cut → strong FFT denoise → noise gate (silences the hiss in the
-        # gaps between phrases so leveling can't pump it back up).
-        "[0:a]highpass=f=80,afftdn=nr=20:nf=-25,"
-        "agate=threshold=0.015:ratio=2:attack=10:release=200,"
-        # Tone: de-mud, presence, air.
+        # Known-good light vocal chain. A heavier denoise + a noise gate were tried to make it
+        # "cleaner" but the gate chattered → a shaky/stuttery noise. Reverted to this.
+        # Gentle FFT denoise → rumble cut → de-mud/presence/air EQ → level → soft compress →
+        # smooth → subtle room.
+        "[0:a]afftdn=nr=12:nf=-30,highpass=f=70,"
         "equalizer=f=250:width_type=o:w=1:g=-2,"
         "equalizer=f=3000:width_type=o:w=1:g=2,"
         "treble=g=2:f=9000,"
-        # Level GENTLY so the noise floor isn't amplified (lower makeup + gentler dynaudnorm).
         f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
-        "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=1,"
-        # gentle leveling: large smoothing window (g) + LOW max-gain (m=3) so the quiet
-        # noise floor isn't boosted. NOTE: dynaudnorm g must be 3–301 (it's the window size,
-        # not a gain) — g=2 is invalid and makes ffmpeg fail.
-        "dynaudnorm=f=400:g=21:m=3,"
+        "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
+        "dynaudnorm=f=250:g=4,"
         "aecho=0.8:0.85:45:0.18[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
