@@ -1,5 +1,5 @@
 import { env } from './env';
-import type { Track } from '@/types/track';
+import type { Track, Album } from '@/types/track';
 
 /**
  * JioSaavn API client. Uses the public JioSaavn API (configurable base via
@@ -26,6 +26,30 @@ interface SaavnSong {
   artists?: { primary?: { name: string }[]; all?: { name: string }[] };
   primaryArtists?: string;
   album?: { name?: string };
+}
+interface SaavnAlbum {
+  id: string;
+  name?: string;
+  title?: string;
+  image?: SaavnImage[] | string;
+  artists?: { primary?: { name: string }[]; all?: { name: string }[] };
+  primaryArtists?: string;
+  year?: string | number;
+  songs?: SaavnSong[];
+}
+
+function toAlbum(a: SaavnAlbum): Album {
+  const cover = Array.isArray(a.image) ? pickBest(a.image) : (a.image ?? null);
+  let artist = 'Various artists';
+  if (a.artists?.primary?.length) artist = a.artists.primary.map((x) => x.name).join(', ');
+  else if (a.primaryArtists) artist = a.primaryArtists;
+  return {
+    id: a.id,
+    name: decodeEntities(a.name ?? a.title ?? 'Album'),
+    artist: decodeEntities(artist),
+    coverUrl: cover,
+    year: a.year ? String(a.year) : null,
+  };
 }
 
 /** JioSaavn returns titles with HTML entities (&amp;, &quot;, &#039;) — decode them. */
@@ -79,14 +103,39 @@ async function getJson(path: string): Promise<unknown> {
 }
 
 export const jiosaavn = {
-  /** Search songs by free-text query. Returns [] on any failure. */
-  searchSongs: async (query: string, limit = 20): Promise<Track[]> => {
+  /** Search songs by free-text query (paginated). Returns [] on any failure. */
+  searchSongs: async (query: string, limit = 20, page = 0): Promise<Track[]> => {
     if (!query.trim()) return [];
     try {
       const json = (await getJson(
-        `/api/search/songs?query=${encodeURIComponent(query)}&page=0&limit=${limit}`,
+        `/api/search/songs?query=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
       )) as { data?: { results?: SaavnSong[] } };
       return (json.data?.results ?? []).map(toTrack);
+    } catch {
+      return [];
+    }
+  },
+
+  /** Search albums by free-text query. Returns [] on any failure. */
+  searchAlbums: async (query: string, limit = 20): Promise<Album[]> => {
+    if (!query.trim()) return [];
+    try {
+      const json = (await getJson(
+        `/api/search/albums?query=${encodeURIComponent(query)}&page=0&limit=${limit}`,
+      )) as { data?: { results?: SaavnAlbum[] } };
+      return (json.data?.results ?? []).map(toAlbum);
+    } catch {
+      return [];
+    }
+  },
+
+  /** Fetch the tracks of an album. Returns [] on any failure. */
+  getAlbumSongs: async (albumId: string): Promise<Track[]> => {
+    try {
+      const json = (await getJson(`/api/albums?id=${encodeURIComponent(albumId)}`)) as {
+        data?: { songs?: SaavnSong[] };
+      };
+      return (json.data?.songs ?? []).map(toTrack);
     } catch {
       return [];
     }

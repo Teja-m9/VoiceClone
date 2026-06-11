@@ -9,3 +9,12 @@ export type Track = {
   streamUrl: string | null;
   isPremium: boolean;
 };
+
+/** An album surfaced in search (normalized from the JioSaavn API). */
+export type Album = {
+  id: string;
+  name: string;
+  artist: string;
+  coverUrl: string | null;
+  year: string | null;
+};

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Text, BentoCard, GradientButton, SongCard, SongTile } from '@/components';
 import { useVoiceProfiles } from '@/hooks/useVoiceProfiles';
@@ -185,11 +185,20 @@ export default function CreateScreen() {
           {loading ? (
             <ActivityIndicator color={palette.violet} style={{ marginTop: spacing.lg }} />
           ) : (
-            <View style={styles.grid}>
-              {tracks.slice(0, 10).map((track, i) => (
-                <SongTile key={track.id} track={track} index={Math.min(i, 8)} onPress={pickTrack} />
-              ))}
-            </View>
+            <>
+              <View style={styles.grid}>
+                {tracks.slice(0, 10).map((track, i) => (
+                  <SongTile key={track.id} track={track} index={Math.min(i, 8)} onPress={pickTrack} />
+                ))}
+              </View>
+              <Pressable onPress={() => router.push('/search' as Href)} style={styles.moreBtn}>
+                <Ionicons name="search" size={16} color={palette.violet} />
+                <Text variant="label" color={palette.violet}>
+                  More songs & albums
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color={palette.violet} />
+              </Pressable>
+            </>
           )}
         </>
       )}
@@ -245,4 +254,16 @@ const styles = StyleSheet.create({
   },
   searchInput: { ...typography.body, color: palette.textPrimary, flex: 1, paddingVertical: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.lg },
+  moreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+  },
 });
