@@ -23,20 +23,27 @@ FMIN, FMAX = 65.0, 500.0
 HOP = 512
 
 
-def estimate_gender(wav_path: str) -> str:
-    """Median F0 of a voice clip → 'male' | 'female' | 'unknown'. Fast: analyses up to the
-    first 45s with YIN (gender only needs a rough median pitch)."""
+def median_f0(wav_path: str) -> float | None:
+    """Median fundamental frequency (Hz) of a voice clip, or None. Fast: first 45s, YIN."""
     if not _LIBROSA:
-        return "unknown"
+        return None
     try:
         y, sr = librosa.load(wav_path, sr=16000, mono=True, duration=45.0)
         f0 = librosa.yin(y, fmin=FMIN, fmax=FMAX, sr=sr)
         vals = f0[(f0 > FMIN) & (f0 < FMAX)]
         if vals.size < 10:
-            return "unknown"
-        return "male" if float(np.median(vals)) < FEMALE_SPLIT_HZ else "female"
+            return None
+        return float(np.median(vals))
     except Exception:
+        return None
+
+
+def estimate_gender(wav_path: str) -> str:
+    """Median-F0 → 'male' | 'female' | 'unknown'."""
+    m = median_f0(wav_path)
+    if m is None:
         return "unknown"
+    return "male" if m < FEMALE_SPLIT_HZ else "female"
 
 
 def selective_convert(original_vocal: str, converted_vocal: str, user_gender: str, out_path: str) -> str:

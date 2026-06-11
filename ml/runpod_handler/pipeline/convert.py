@@ -12,7 +12,11 @@ import os
 import subprocess
 
 from config import config
-from pipeline.gender import estimate_gender
+from pipeline.gender import median_f0
+
+# A male user singing anything pitched above this (most female leads + very high male songs)
+# gets dropped an octave into male range. An octave keeps the vocal IN TUNE with the backing.
+MALE_RANGE_CEIL_HZ = 165.0
 
 
 class ConversionError(RuntimeError):
@@ -40,16 +44,19 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
 
 
 def _gender_semitone_shift(vocal_stem: str, user_gender: str | None) -> str:
-    """Pitch-match the cover to the user's gender register. If the song is sung by the
-    OPPOSITE gender, shift one octave toward the user (male user + female song → down an
-    octave so it doesn't sound girly; female user + male song → up). An octave keeps it
-    musically IN TUNE with the backing track. Pitch only — the voice/timbre is unchanged."""
+    """Pitch-match the cover to the user's register, decided from the song's ACTUAL median
+    pitch (more reliable than a male/female guess). A male user on a high/female-pitched
+    song drops one octave into male range (so it's not girly); a female user on a low/male
+    song goes up an octave. An octave keeps the vocal IN TUNE with the backing track.
+    Pitch only — the voice/timbre is unchanged."""
     if user_gender not in ("male", "female"):
         return "0"
-    song_gender = estimate_gender(vocal_stem)
-    if user_gender == "male" and song_gender == "female":
+    f0 = median_f0(vocal_stem)
+    if f0 is None:
+        return "0"
+    if user_gender == "male" and f0 > MALE_RANGE_CEIL_HZ:
         return "-12"
-    if user_gender == "female" and song_gender == "male":
+    if user_gender == "female" and f0 < MALE_RANGE_CEIL_HZ:
         return "12"
     return "0"
 

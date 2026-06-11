@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Config(BaseSettings):
     log_level: str = "INFO"
     seed_vc_dir: str = "/opt/seed-vc"
-    demucs_model: str = "htdemucs"
+    # htdemucs_ft = the fine-tuned, higher-quality separation model (cleaner instrumental /
+    # less bleed in the background & music). Slower than plain htdemucs but better output.
+    demucs_model: str = "htdemucs_ft"
     # Selective gender conversion: only convert the user's-gender parts, keep the other
     # gender's vocal original. OFF by default — when on, cross-gender songs keep the original
     # singer's vocal, which makes the cover sound like "the usual song" instead of the user's
