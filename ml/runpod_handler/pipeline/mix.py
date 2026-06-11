@@ -54,7 +54,9 @@ def remix(
         f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
         "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
         "dynaudnorm=f=250:g=4,"
-        "aecho=0.8:0.85:45:0.18[v];"
+        # Two-tap echo = a fuller plate-style space so the vocal sounds produced, sitting in
+        # the track rather than dry on top.
+        "aecho=0.8:0.9:45|110:0.18|0.12[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 

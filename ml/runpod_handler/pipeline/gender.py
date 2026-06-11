@@ -61,12 +61,12 @@ def selective_convert(original_vocal: str, converted_vocal: str, user_gender: st
         raise RuntimeError("empty vocal")
     yo, yc = yo[:n], yc[:n]
 
-    # Per-frame F0 of the ORIGINAL vocal decides who is singing when.
-    f0, _, _ = librosa.pyin(yo, fmin=FMIN, fmax=FMAX, sr=sr, hop_length=HOP)
+    # Per-frame F0 of the ORIGINAL vocal decides who is singing when (YIN — fast).
+    f0 = librosa.yin(yo, fmin=FMIN, fmax=FMAX, sr=sr, hop_length=HOP)
 
-    # frame mask: 1 → use converted (user's gender, or unvoiced/silence), 0 → keep original.
+    # frame mask: 1 → use converted (user's gender, or unpitched/silence), 0 → keep original.
     frame = np.ones(len(f0), dtype=np.float32)
-    voiced = ~np.isnan(f0)
+    voiced = (f0 > FMIN) & (f0 < FMAX)
     frame_gender_is_user = (
         (f0 < FEMALE_SPLIT_HZ) if user_gender == "male" else (f0 >= FEMALE_SPLIT_HZ)
     )

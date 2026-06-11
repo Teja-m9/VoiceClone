@@ -8,15 +8,10 @@ NOTE: Seed-VC's CLI flags vary by commit. Adjust the args below to match the ver
 pinned in the Dockerfile if inference fails — the contract (in: source+target, out: wav)
 stays the same."""
 import glob
-import math
 import os
 import subprocess
 
 from config import config
-from pipeline.gender import median_f0
-
-# Fallback ceiling (Hz) when the user's reference pitch can't be measured.
-MALE_RANGE_CEIL_HZ = 165.0
 
 
 class ConversionError(RuntimeError):
@@ -43,32 +38,6 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
     return cleaned if proc.returncode == 0 and os.path.exists(cleaned) else voice_ref
 
 
-def _pitch_match_shift(vocal_stem: str, voice_ref: str, user_gender: str | None) -> str:
-    """Shift the song's vocal to the USER's natural octave so the cover sounds like their
-    REAL voice — only drop to a deep/'bass' octave if the user's own voice is actually that
-    low; if their voice already sits near the song's range, no shift (use the real voice that
-    mixes with the music). Decided by the user's reference pitch vs the song's pitch, rounded
-    to whole octaves (octaves stay in tune with the backing). Pitch only — timbre unchanged.
-
-    Falls back to a gender hint if the user's pitch can't be measured."""
-    song_f0 = median_f0(vocal_stem)
-    user_f0 = median_f0(voice_ref)
-    if song_f0 and user_f0:
-        octaves = math.log2(user_f0 / song_f0)
-        # Only shift when the song is GENUINELY ~an octave away from the user's voice.
-        # Within ~0.8 octave we keep the natural voice (no forced 'deep' shift) so it sounds
-        # like the user singing the song, just mixed in.
-        if abs(octaves) < 0.8:
-            return "0"
-        return str(max(-1, min(1, round(octaves))) * 12)
-    # Fallback: octave toward the user's gender if the song is clearly in the other range.
-    if user_gender == "male" and song_f0 and song_f0 > MALE_RANGE_CEIL_HZ:
-        return "-12"
-    if user_gender == "female" and song_f0 and song_f0 < MALE_RANGE_CEIL_HZ:
-        return "12"
-    return "0"
-
-
 def convert_voice(
     vocal_stem: str,
     voice_ref: str,
@@ -81,7 +50,6 @@ def convert_voice(
     os.makedirs(out_dir, exist_ok=True)
 
     voice_ref = _clean_reference(voice_ref, workdir)
-    semitone = _pitch_match_shift(vocal_stem, voice_ref, user_gender)
 
     common = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),
@@ -90,11 +58,12 @@ def convert_voice(
         "--output", out_dir,
         # 30 steps is Seed-VC's recommended setting for singing — good quality and fast.
         "--diffusion-steps", "30",
-        # Keep the song's melody; auto-f0-adjust OFF so it stays in the song's key. The
-        # gender octave shift (semitone) lands a male user in male range while staying in tune.
+        # Keep the song's exact melody AND key (no pitch shift). Gender is handled AFTER this
+        # by selective conversion (opposite-gender parts kept original), so the converted
+        # same-gender parts stay naturally in the song's key.
         "--f0-condition", "True",
         "--auto-f0-adjust", "False",
-        "--semi-tone-shift", semitone,
+        "--semi-tone-shift", "0",
     ]
 
     # Pro Voice (fine-tuned checkpoint) is DISABLED — the trained models produced poor output.
