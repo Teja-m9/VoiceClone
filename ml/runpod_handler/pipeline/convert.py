@@ -8,14 +8,14 @@ NOTE: Seed-VC's CLI flags vary by commit. Adjust the args below to match the ver
 pinned in the Dockerfile if inference fails — the contract (in: source+target, out: wav)
 stays the same."""
 import glob
+import math
 import os
 import subprocess
 
 from config import config
 from pipeline.gender import median_f0
 
-# A male user singing anything pitched above this (most female leads + very high male songs)
-# gets dropped an octave into male range. An octave keeps the vocal IN TUNE with the backing.
+# Fallback ceiling (Hz) when the user's reference pitch can't be measured.
 MALE_RANGE_CEIL_HZ = 165.0
 
 
@@ -43,20 +43,24 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
     return cleaned if proc.returncode == 0 and os.path.exists(cleaned) else voice_ref
 
 
-def _gender_semitone_shift(vocal_stem: str, user_gender: str | None) -> str:
-    """Pitch-match the cover to the user's register, decided from the song's ACTUAL median
-    pitch (more reliable than a male/female guess). A male user on a high/female-pitched
-    song drops one octave into male range (so it's not girly); a female user on a low/male
-    song goes up an octave. An octave keeps the vocal IN TUNE with the backing track.
-    Pitch only — the voice/timbre is unchanged."""
-    if user_gender not in ("male", "female"):
-        return "0"
-    f0 = median_f0(vocal_stem)
-    if f0 is None:
-        return "0"
-    if user_gender == "male" and f0 > MALE_RANGE_CEIL_HZ:
+def _pitch_match_shift(vocal_stem: str, voice_ref: str, user_gender: str | None) -> str:
+    """Shift the song's vocal to the USER's natural octave so the cover sounds like their
+    REAL voice — only drop to a deep/'bass' octave if the user's own voice is actually that
+    low; if their voice already sits near the song's range, no shift (use the real voice that
+    mixes with the music). Decided by the user's reference pitch vs the song's pitch, rounded
+    to whole octaves (octaves stay in tune with the backing). Pitch only — timbre unchanged.
+
+    Falls back to a gender hint if the user's pitch can't be measured."""
+    song_f0 = median_f0(vocal_stem)
+    user_f0 = median_f0(voice_ref)
+    if song_f0 and user_f0:
+        # nearest number of octaves that lands the song's pitch on the user's voice
+        octaves = max(-2, min(2, round(math.log2(user_f0 / song_f0))))
+        return str(octaves * 12)
+    # Fallback: octave toward the user's gender if the song is clearly in the other range.
+    if user_gender == "male" and song_f0 and song_f0 > MALE_RANGE_CEIL_HZ:
         return "-12"
-    if user_gender == "female" and f0 < MALE_RANGE_CEIL_HZ:
+    if user_gender == "female" and song_f0 and song_f0 < MALE_RANGE_CEIL_HZ:
         return "12"
     return "0"
 
@@ -73,7 +77,7 @@ def convert_voice(
     os.makedirs(out_dir, exist_ok=True)
 
     voice_ref = _clean_reference(voice_ref, workdir)
-    semitone = _gender_semitone_shift(vocal_stem, user_gender)
+    semitone = _pitch_match_shift(vocal_stem, voice_ref, user_gender)
 
     common = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),
