@@ -12,10 +12,31 @@ import os
 import subprocess
 
 from config import config
+from pipeline.gender import median_f0
+
+# Cross-gender transpose (research-backed: AI-cover guides use a full OCTAVE so the vocal
+# stays in tune with the backing — non-octave shifts detune). A male user on a female-range
+# song drops one octave into male range ("more male"); a female user on a male-range song
+# goes up. Same-range songs aren't shifted.
+SONG_FEMALE_HZ = 185.0   # song median F0 above this ≈ female range
+SONG_MALE_HZ = 165.0     # song median F0 below this ≈ male range
 
 
 class ConversionError(RuntimeError):
     pass
+
+
+def _cross_gender_shift(vocal_stem: str, user_gender: str | None) -> str:
+    if user_gender not in ("male", "female"):
+        return "0"
+    f0 = median_f0(vocal_stem)
+    if not f0:
+        return "0"
+    if user_gender == "male" and f0 > SONG_FEMALE_HZ:
+        return "-12"
+    if user_gender == "female" and f0 < SONG_MALE_HZ:
+        return "12"
+    return "0"
 
 
 def _clean_reference(voice_ref: str, workdir: str) -> str:
@@ -50,6 +71,7 @@ def convert_voice(
     os.makedirs(out_dir, exist_ok=True)
 
     voice_ref = _clean_reference(voice_ref, workdir)
+    semitone = _cross_gender_shift(vocal_stem, user_gender)
 
     common = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),
@@ -58,12 +80,12 @@ def convert_voice(
         "--output", out_dir,
         # 30 steps is Seed-VC's recommended setting for singing — good quality and fast.
         "--diffusion-steps", "30",
-        # Keep the song's exact melody AND key (no pitch shift). Gender is handled AFTER this
-        # by selective conversion (opposite-gender parts kept original), so the converted
-        # same-gender parts stay naturally in the song's key.
+        # Preserve melody; auto-f0-adjust OFF (not recommended for singing — it drifts pitch).
+        # A whole-octave cross-gender transpose keeps the vocal IN TUNE with the backing while
+        # landing it in the user's register. Timbre/formants come from the user's reference.
         "--f0-condition", "True",
         "--auto-f0-adjust", "False",
-        "--semi-tone-shift", "0",
+        "--semi-tone-shift", semitone,
     ]
 
     # Pro Voice (fine-tuned checkpoint) is DISABLED — the trained models produced poor output.
