@@ -54,9 +54,13 @@ def _pitch_match_shift(vocal_stem: str, voice_ref: str, user_gender: str | None)
     song_f0 = median_f0(vocal_stem)
     user_f0 = median_f0(voice_ref)
     if song_f0 and user_f0:
-        # nearest number of octaves that lands the song's pitch on the user's voice
-        octaves = max(-2, min(2, round(math.log2(user_f0 / song_f0))))
-        return str(octaves * 12)
+        octaves = math.log2(user_f0 / song_f0)
+        # Only shift when the song is GENUINELY ~an octave away from the user's voice.
+        # Within ~0.8 octave we keep the natural voice (no forced 'deep' shift) so it sounds
+        # like the user singing the song, just mixed in.
+        if abs(octaves) < 0.8:
+            return "0"
+        return str(max(-1, min(1, round(octaves))) * 12)
     # Fallback: octave toward the user's gender if the song is clearly in the other range.
     if user_gender == "male" and song_f0 and song_f0 > MALE_RANGE_CEIL_HZ:
         return "-12"
