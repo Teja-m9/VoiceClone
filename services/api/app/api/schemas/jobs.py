@@ -5,6 +5,7 @@ class CreateJobRequest(ApiModel):
     song_id: str  # JioSaavn song id
     voice_profile_id: str
     idempotency_key: str
+    gender: str | None = None  # 'male' | 'female' — pitch the vocal to the user's register
 
 
 class JobResponse(ApiModel):

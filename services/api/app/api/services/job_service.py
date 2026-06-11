@@ -107,6 +107,7 @@ async def create_job(
         output_audio_put_url=s3.presign_put(out_key, "audio/mpeg", config.presign_get_ttl),
         output_audio_key=out_key,
         voice_model_get_url=model_url,
+        user_gender=req.gender,
     )
     # Runpod has no webhook HMAC; we authenticate via a secret token in the callback URL.
     webhook_url = f"{config.api_base_url}/webhooks/runpod?token={config.runpod_webhook_secret}"

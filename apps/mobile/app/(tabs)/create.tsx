@@ -23,6 +23,7 @@ export default function CreateScreen() {
   const { quotaRemaining, isPremium } = useProfile();
 
   const [voiceId, setVoiceId] = useState<string | null>(null);
+  const [gender, setGender] = useState<'male' | 'female'>('male');
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [query, setQuery] = useState('');
   const { tracks, loading } = useSongSearch(query, 'Telugu');
@@ -60,6 +61,7 @@ export default function CreateScreen() {
         voiceId,
         makeKey(selectedTrack.id, voiceId),
         selectedTrack.streamUrl,
+        gender,
       );
       const voiceName = readyProfiles.find((v) => v.id === voiceId)?.name ?? 'My voice';
       router.push({
@@ -134,9 +136,35 @@ export default function CreateScreen() {
         </View>
       )}
 
-      {/* Step 2: choose song */}
+      {/* Your voice type → pitches the cover to your register (so a male voice isn't girly) */}
       <Text variant="h2" style={styles.step}>
-        2 · The track
+        2 · Your voice type
+      </Text>
+      <View style={styles.voiceRow}>
+        {(['male', 'female'] as const).map((g) => {
+          const active = gender === g;
+          return (
+            <Pressable
+              key={g}
+              onPress={() => setGender(g)}
+              style={[styles.voiceChip, active && styles.voiceChipActive]}
+            >
+              <Ionicons
+                name={g === 'male' ? 'male' : 'female'}
+                size={18}
+                color={active ? palette.violet : palette.textMuted}
+              />
+              <Text variant="label" color={active ? palette.textPrimary : palette.textSecondary}>
+                {g === 'male' ? 'Male' : 'Female'}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Step 3: choose song */}
+      <Text variant="h2" style={styles.step}>
+        3 · The track
       </Text>
       {selectedTrack ? (
         <SongCard track={selectedTrack} selected onPress={() => setSelectedTrack(null)} />

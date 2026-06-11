@@ -12,6 +12,7 @@ import os
 import subprocess
 
 from config import config
+from pipeline.gender import estimate_gender
 
 
 class ConversionError(RuntimeError):
@@ -38,17 +39,34 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
     return cleaned if proc.returncode == 0 and os.path.exists(cleaned) else voice_ref
 
 
+def _gender_semitone_shift(vocal_stem: str, user_gender: str | None) -> str:
+    """Pitch-match the cover to the user's gender register. If the song is sung by the
+    OPPOSITE gender, shift one octave toward the user (male user + female song → down an
+    octave so it doesn't sound girly; female user + male song → up). An octave keeps it
+    musically IN TUNE with the backing track. Pitch only — the voice/timbre is unchanged."""
+    if user_gender not in ("male", "female"):
+        return "0"
+    song_gender = estimate_gender(vocal_stem)
+    if user_gender == "male" and song_gender == "female":
+        return "-12"
+    if user_gender == "female" and song_gender == "male":
+        return "12"
+    return "0"
+
+
 def convert_voice(
     vocal_stem: str,
     voice_ref: str,
     workdir: str,
     checkpoint: str | None = None,  # accepted for API compatibility; Pro is DISABLED below
     model_config: str | None = None,
+    user_gender: str | None = None,
 ) -> str:
     out_dir = os.path.join(workdir, "converted")
     os.makedirs(out_dir, exist_ok=True)
 
     voice_ref = _clean_reference(voice_ref, workdir)
+    semitone = _gender_semitone_shift(vocal_stem, user_gender)
 
     common = [
         "python", os.path.join(config.seed_vc_dir, "inference.py"),
@@ -57,11 +75,11 @@ def convert_voice(
         "--output", out_dir,
         # 30 steps is Seed-VC's recommended setting for singing — good quality and fast.
         "--diffusion-steps", "30",
-        # Preserve the song's exact melody AND key. auto-f0-adjust is OFF on purpose so the
-        # cloned vocal stays in the song's original pitch and sits in tune with the music.
+        # Keep the song's melody; auto-f0-adjust OFF so it stays in the song's key. The
+        # gender octave shift (semitone) lands a male user in male range while staying in tune.
         "--f0-condition", "True",
         "--auto-f0-adjust", "False",
-        "--semi-tone-shift", "0",
+        "--semi-tone-shift", semitone,
     ]
 
     # Pro Voice (fine-tuned checkpoint) is DISABLED — the trained models produced poor output.

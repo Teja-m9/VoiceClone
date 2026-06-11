@@ -24,13 +24,14 @@ HOP = 512
 
 
 def estimate_gender(wav_path: str) -> str:
-    """Median F0 of a (clean) voice clip → 'male' | 'female' | 'unknown'."""
+    """Median F0 of a voice clip → 'male' | 'female' | 'unknown'. Fast: analyses up to the
+    first 45s with YIN (gender only needs a rough median pitch)."""
     if not _LIBROSA:
         return "unknown"
     try:
-        y, sr = librosa.load(wav_path, sr=16000, mono=True)
-        f0, _, _ = librosa.pyin(y, fmin=FMIN, fmax=FMAX, sr=sr)
-        vals = f0[~np.isnan(f0)]
+        y, sr = librosa.load(wav_path, sr=16000, mono=True, duration=45.0)
+        f0 = librosa.yin(y, fmin=FMIN, fmax=FMAX, sr=sr)
+        vals = f0[(f0 > FMIN) & (f0 < FMAX)]
         if vals.size < 10:
             return "unknown"
         return "male" if float(np.median(vals)) < FEMALE_SPLIT_HZ else "female"

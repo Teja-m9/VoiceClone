@@ -11,6 +11,7 @@ def build_clone_job_payload(
     output_audio_put_url: str,
     output_audio_key: str,
     voice_model_get_url: str | None = None,
+    user_gender: str | None = None,
 ) -> dict:
     inputs = {
         "song_url": song_stream_url,
@@ -25,6 +26,8 @@ def build_clone_job_payload(
         "watermark": watermark,
         # Free tier gets a 30s preview; premium gets the full song.
         "preview": preview,
+        # User's gender → pitch the vocal to their register on opposite-gender songs.
+        "user_gender": user_gender,
         "inputs": inputs,
         "outputs": {
             "audio_put_url": output_audio_put_url,

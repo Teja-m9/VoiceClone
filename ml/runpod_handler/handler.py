@@ -62,8 +62,12 @@ def handler(event: dict) -> dict:
         log.info("job %s: separating stems (demucs)", job_id)
         vocals, instrumental = separate_stems(song, workdir)
 
-        log.info("job %s: converting voice (seed-vc, pro=%s)", job_id, bool(checkpoint))
-        converted = convert_voice(vocals, voice_ref, workdir, checkpoint=checkpoint, model_config=model_config)
+        log.info("job %s: converting voice (seed-vc, gender=%s)", job_id, inp.get("user_gender"))
+        converted = convert_voice(
+            vocals, voice_ref, workdir,
+            checkpoint=checkpoint, model_config=model_config,
+            user_gender=inp.get("user_gender"),
+        )
 
         # Selective gender: keep the OTHER gender's vocal original; only sing the user's
         # parts. Fail-safe — on any issue we keep the fully-converted vocal.
