@@ -19,18 +19,15 @@ class ConversionError(RuntimeError):
 
 
 def _clean_reference(voice_ref: str, workdir: str) -> str:
-    """Isolate the user's voice from their recording before cloning: band-limit to the
-    speech range, FFT-denoise the background (room/traffic/hiss), and level it. A clean
-    reference makes the clone sound like the user — not the noise they recorded in."""
+    """GENTLY clean the user's recording before cloning — just enough to drop rumble/hiss
+    while PRESERVING their real voice (timbre, brightness, character). Aggressive denoise /
+    gating / a high HPF mangle the reference, so the clone stops sounding like the user.
+    - highpass=60: remove sub-bass rumble only (keeps male vocal fundamentals ~85Hz+)
+    - afftdn nr=12: light hiss removal (no character loss)
+    - dynaudnorm gentle: even out level without pumping
+    No lowpass (keep brightness), no noise gate (keeps natural texture/breath)."""
     cleaned = os.path.join(workdir, "voice_ref_clean.wav")
-    # Stronger denoise + a low noise gate so only the user's clean voice survives (no room
-    # tone / background between words), then level it.
-    flt = (
-        "highpass=f=90,lowpass=f=11000,"
-        "afftdn=nr=30:nf=-30,"
-        "agate=threshold=0.012:ratio=2:attack=15:release=250,"
-        "dynaudnorm=f=200:g=5"
-    )
+    flt = "highpass=f=60,afftdn=nr=12,dynaudnorm=f=400:g=3"
     proc = subprocess.run(
         ["ffmpeg", "-y", "-i", voice_ref, "-af", flt, "-ar", "22050", "-ac", "1", cleaned],
         capture_output=True, text=True,
