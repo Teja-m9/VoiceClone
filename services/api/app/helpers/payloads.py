@@ -12,6 +12,8 @@ def build_clone_job_payload(
     output_audio_key: str,
     voice_model_get_url: str | None = None,
     user_gender: str | None = None,
+    vocal_level: str | None = None,
+    style: str | None = None,
 ) -> dict:
     inputs = {
         "song_url": song_stream_url,
@@ -28,6 +30,9 @@ def build_clone_job_payload(
         "preview": preview,
         # User's gender → pitch the vocal to their register on opposite-gender songs.
         "user_gender": user_gender,
+        # Mix controls chosen by the user.
+        "vocal_level": vocal_level or "balanced",
+        "style": style or "studio",
         "inputs": inputs,
         "outputs": {
             "audio_put_url": output_audio_put_url,

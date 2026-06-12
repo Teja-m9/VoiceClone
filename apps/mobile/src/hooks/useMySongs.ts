@@ -38,7 +38,7 @@ export function useMySongs() {
         .eq('user_id', userId)
         .eq('status', 'done')
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(100);
       const rows = (data ?? []) as { id: string; song_id: string; created_at: string }[];
 
       // Resolve each unique song's metadata once.

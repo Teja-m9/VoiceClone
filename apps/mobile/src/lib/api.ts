@@ -119,6 +119,8 @@ export const api = {
     idempotencyKey: string,
     streamUrl?: string | null,
     gender?: 'male' | 'female' | null,
+    vocalLevel?: 'soft' | 'balanced' | 'loud',
+    style?: 'studio' | 'live' | 'lofi' | 'reverb',
   ) => {
     if (SIMULATE_JOBS) {
       // Real Supabase but simulated GPU: still enforce + decrement the daily quota via the
@@ -159,6 +161,8 @@ export const api = {
         voice_profile_id: voiceProfileId,
         idempotency_key: idempotencyKey,
         gender,
+        vocal_level: vocalLevel,
+        style,
       },
     });
   },

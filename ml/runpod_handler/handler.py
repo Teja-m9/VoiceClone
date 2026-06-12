@@ -87,7 +87,11 @@ def handler(event: dict) -> dict:
                 log.warning("job %s: selective gender skipped (%s)", job_id, exc)
 
         log.info("job %s: remixing (ffmpeg, watermark=%s preview=%s)", job_id, watermark, preview)
-        cover = remix(converted, instrumental, watermark, workdir, preview=preview)
+        cover = remix(
+            converted, instrumental, watermark, workdir, preview=preview,
+            vocal_level=inp.get("vocal_level", "balanced"),
+            style=inp.get("style", "studio"),
+        )
 
         log.info("job %s: uploading output", job_id)
         upload_put(cover, outputs["audio_put_url"], "audio/mpeg")

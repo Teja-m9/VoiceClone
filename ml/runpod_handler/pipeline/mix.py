@@ -9,12 +9,35 @@ import subprocess
 class MixError(RuntimeError):
     pass
 
-# Loudness targets (LUFS). Vocal and instrumental sit at the SAME level so the cloned
-# voice merges into the background track rather than sitting loudly on top of it. Lower
-# VOCAL_LUFS (e.g. -17) to push the voice further back into the mix; raise it for a more
-# upfront lead vocal.
-VOCAL_LUFS = "-16"
 INSTRUMENTAL_LUFS = "-16"
+
+# Vocal-vs-music balance the user can choose. Louder = vocal sits more on top; softer =
+# it blends back into the music. (Instrumental stays at -16.)
+VOCAL_LEVELS = {"soft": "-19", "balanced": "-16", "loud": "-12"}
+
+# Style presets — each sets the vocal's TONE EQ and its reverb/space.
+STYLES = {
+    # clean, present, modern — a touch of plate room
+    "studio": {
+        "tone": "equalizer=f=250:width_type=o:w=1:g=-2,equalizer=f=3000:width_type=o:w=1:g=2,treble=g=2:f=9000",
+        "space": "aecho=0.8:0.9:45|110:0.18|0.12",
+    },
+    # bigger hall / concert ambience
+    "live": {
+        "tone": "equalizer=f=250:width_type=o:w=1:g=-1,equalizer=f=3000:width_type=o:w=1:g=2,treble=g=1:f=9000",
+        "space": "aecho=0.8:0.9:60|180|320:0.3|0.22|0.14",
+    },
+    # warm, dull, vintage — rolled-off highs
+    "lofi": {
+        "tone": "equalizer=f=300:width_type=o:w=1:g=-1,lowpass=f=3600,treble=g=-3:f=8000",
+        "space": "aecho=0.7:0.8:50:0.15",
+    },
+    # lush, heavy reverb
+    "reverb": {
+        "tone": "equalizer=f=250:width_type=o:w=1:g=-2,equalizer=f=3000:width_type=o:w=1:g=2,treble=g=2:f=9000",
+        "space": "aecho=0.8:0.95:80|200|400:0.45|0.32|0.2",
+    },
+}
 
 
 def _run(cmd: list[str]) -> None:
@@ -29,34 +52,25 @@ def remix(
     watermark: bool,
     workdir: str,
     preview: bool = False,
+    vocal_level: str = "balanced",
+    style: str = "studio",
 ) -> str:
     out_path = os.path.join(workdir, "cover.mp3")
     # Free tier → trim the output to a 30s preview; premium → full track.
     trim = ["-t", "30"] if preview else []
 
-    # Studio-style vocal chain so the cloned voice sounds *produced* and sits inside the song
-    # instead of pasted on top:
-    #   afftdn         — remove hiss/artifacts (kills the stray "beep" buzz)
-    #   highpass       — clear low-end rumble out of the vocal
-    #   equalizer/treble — tame mud (~250Hz), add presence (~3kHz) + air (~9kHz) like a mixed vocal
-    #   loudnorm       — sit a touch above the instrumental (balanced, blended)
-    #   acompressor + dynaudnorm — even, never-dropping level
-    #   aecho          — a subtle room so the vocal shares the song's space (not bone-dry)
+    vlufs = VOCAL_LEVELS.get(vocal_level, VOCAL_LEVELS["balanced"])
+    preset = STYLES.get(style, STYLES["studio"])
+
+    # Vocal chain: gentle denoise → rumble cut → style TONE EQ → level (user's balance) →
+    # soft compress → smooth → style SPACE (reverb).
     balance = (
-        # Known-good light vocal chain. A heavier denoise + a noise gate were tried to make it
-        # "cleaner" but the gate chattered → a shaky/stuttery noise. Reverted to this.
-        # Gentle FFT denoise → rumble cut → de-mud/presence/air EQ → level → soft compress →
-        # smooth → subtle room.
         "[0:a]afftdn=nr=12:nf=-30,highpass=f=70,"
-        "equalizer=f=250:width_type=o:w=1:g=-2,"
-        "equalizer=f=3000:width_type=o:w=1:g=2,"
-        "treble=g=2:f=9000,"
-        f"loudnorm=I={VOCAL_LUFS}:TP=-1.5,"
+        f"{preset['tone']},"
+        f"loudnorm=I={vlufs}:TP=-1.5,"
         "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
         "dynaudnorm=f=250:g=4,"
-        # Two-tap echo = a fuller plate-style space so the vocal sounds produced, sitting in
-        # the track rather than dry on top.
-        "aecho=0.8:0.9:45|110:0.18|0.12[v];"
+        f"{preset['space']}[v];"
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 

@@ -24,6 +24,8 @@ export default function CreateScreen() {
 
   const [voiceId, setVoiceId] = useState<string | null>(null);
   const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [vocalLevel, setVocalLevel] = useState<'soft' | 'balanced' | 'loud'>('balanced');
+  const [style, setStyle] = useState<'studio' | 'live' | 'lofi' | 'reverb'>('studio');
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [query, setQuery] = useState('');
   const { tracks, loading } = useSongSearch(query, 'Telugu');
@@ -62,6 +64,8 @@ export default function CreateScreen() {
         makeKey(selectedTrack.id, voiceId),
         selectedTrack.streamUrl,
         gender,
+        vocalLevel,
+        style,
       );
       const voiceName = readyProfiles.find((v) => v.id === voiceId)?.name ?? 'My voice';
       router.push({
@@ -202,6 +206,50 @@ export default function CreateScreen() {
           )}
         </>
       )}
+
+      {/* Step 4: sound — vocal balance + style preset */}
+      <Text variant="h2" style={styles.step}>
+        4 · Sound
+      </Text>
+      <Text variant="label" color={palette.textSecondary} style={{ marginBottom: spacing.sm }}>
+        Voice level
+      </Text>
+      <View style={styles.voiceRow}>
+        {(['soft', 'balanced', 'loud'] as const).map((lv) => {
+          const active = vocalLevel === lv;
+          return (
+            <Pressable
+              key={lv}
+              onPress={() => setVocalLevel(lv)}
+              style={[styles.voiceChip, active && styles.voiceChipActive]}
+            >
+              <Text variant="label" color={active ? palette.textPrimary : palette.textSecondary}>
+                {lv === 'soft' ? 'Softer' : lv === 'loud' ? 'Louder' : 'Balanced'}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text variant="label" color={palette.textSecondary} style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
+        Style
+      </Text>
+      <View style={styles.voiceRow}>
+        {(['studio', 'live', 'lofi', 'reverb'] as const).map((st) => {
+          const active = style === st;
+          const label = { studio: 'Studio', live: 'Live', lofi: 'Lo-fi', reverb: 'Reverb' }[st];
+          return (
+            <Pressable
+              key={st}
+              onPress={() => setStyle(st)}
+              style={[styles.voiceChip, active && styles.voiceChipActive]}
+            >
+              <Text variant="label" color={active ? palette.textPrimary : palette.textSecondary}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       {/* Submit */}
       {error && (

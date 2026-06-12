@@ -20,6 +20,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Screen, Text, GradientButton, BentoCard } from '@/components';
 import { api, type JobOut } from '@/lib/api';
+import { jiosaavn } from '@/lib/jiosaavn';
 import { supabase } from '@/lib/supabase';
 import { usePublishedCovers } from '@/hooks/usePublishedCovers';
 import { useProfile } from '@/hooks/useProfile';
@@ -169,6 +170,30 @@ export default function PlaybackScreen() {
       }
     } catch {
       setError('Could not download the cover.');
+    }
+  };
+
+  // Re-generate: a fresh cover of the same song with the same voice.
+  const onRegenerate = async () => {
+    if (!job) return;
+    setError(null);
+    try {
+      player.pause();
+      const t = await jiosaavn.getSongById(job.song_id);
+      const key = `${job.voice_profile_id}:${job.song_id}:${Date.now()}`;
+      const fresh = await api.createJob(job.song_id, job.voice_profile_id, key, t?.streamUrl);
+      router.replace({
+        pathname: '/processing/[jobId]',
+        params: {
+          jobId: fresh.id,
+          title: params.title || '',
+          artist: params.artist || '',
+          cover: params.cover || '',
+          voice: params.voice || '',
+        },
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not re-generate.');
     }
   };
 
@@ -339,6 +364,7 @@ export default function PlaybackScreen() {
           onPress={onDownload}
           disabled={saved}
         />
+        <GradientButton label="↻  Re-generate" variant="outline" onPress={() => void onRegenerate()} />
         <GradientButton label="Make another" variant="outline" onPress={() => router.replace('/(tabs)/create')} />
         <Pressable onPress={onDelete} style={styles.deleteLink} hitSlop={8} accessibilityLabel="Delete this cover">
           <Ionicons name="trash-outline" size={16} color={palette.danger} />

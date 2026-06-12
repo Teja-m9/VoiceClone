@@ -108,6 +108,8 @@ async def create_job(
         output_audio_key=out_key,
         voice_model_get_url=model_url,
         user_gender=req.gender,
+        vocal_level=req.vocal_level,
+        style=req.style,
     )
     # Runpod has no webhook HMAC; we authenticate via a secret token in the callback URL.
     webhook_url = f"{config.api_base_url}/webhooks/runpod?token={config.runpod_webhook_secret}"

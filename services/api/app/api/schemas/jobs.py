@@ -6,6 +6,8 @@ class CreateJobRequest(ApiModel):
     voice_profile_id: str
     idempotency_key: str
     gender: str | None = None  # 'male' | 'female' — pitch the vocal to the user's register
+    vocal_level: str | None = None  # 'soft' | 'balanced' | 'loud' — voice-vs-music balance
+    style: str | None = None  # 'studio' | 'live' | 'lofi' | 'reverb' — vocal vibe preset
 
 
 class JobResponse(ApiModel):
