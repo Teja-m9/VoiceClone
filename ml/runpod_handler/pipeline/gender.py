@@ -83,3 +83,34 @@ def selective_convert(original_vocal: str, converted_vocal: str, user_gender: st
     out = yc * mask + yo * (1.0 - mask)
     sf.write(out_path, out.astype(np.float32), sr)
     return out_path
+
+
+def dual_voice_blend(conv_male: str, conv_female: str, original_vocal: str, out_path: str) -> str:
+    """DUET: male-pitched frames → the male-part voice, female-pitched frames → the female-
+    part voice (gender mask from the original vocal's F0). Both inputs are full conversions
+    of the same song with two different voices. Raises on failure."""
+    if not _LIBROSA:
+        raise RuntimeError("librosa unavailable")
+    yo, sr = librosa.load(original_vocal, sr=None, mono=True)
+    ym, _ = librosa.load(conv_male, sr=sr, mono=True)
+    yf, _ = librosa.load(conv_female, sr=sr, mono=True)
+    n = int(min(len(yo), len(ym), len(yf)))
+    if n <= 0:
+        raise RuntimeError("empty vocal")
+    yo, ym, yf = yo[:n], ym[:n], yf[:n]
+
+    f0 = librosa.yin(yo, fmin=FMIN, fmax=FMAX, sr=sr, hop_length=HOP)
+    frame = np.ones(len(f0), dtype=np.float32)  # 1 → male voice, 0 → female voice
+    voiced = (f0 > FMIN) & (f0 < FMAX)
+    frame[voiced & (f0 >= FEMALE_SPLIT_HZ)] = 0.0  # female-pitched → female voice
+
+    mask = np.repeat(frame, HOP)[:n]
+    if mask.size < n:
+        mask = np.pad(mask, (0, n - mask.size), constant_values=1.0)
+    win = max(1, int(sr * 0.04))
+    mask = np.convolve(mask, np.ones(win, dtype=np.float32) / win, mode="same")
+    mask = np.clip(mask, 0.0, 1.0)
+
+    out = ym * mask + yf * (1.0 - mask)
+    sf.write(out_path, out.astype(np.float32), sr)
+    return out_path

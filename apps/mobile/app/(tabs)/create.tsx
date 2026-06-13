@@ -23,6 +23,8 @@ export default function CreateScreen() {
   const { quotaRemaining, isPremium } = useProfile();
 
   const [voiceId, setVoiceId] = useState<string | null>(null);
+  const [duet, setDuet] = useState(false);
+  const [voiceId2, setVoiceId2] = useState<string | null>(null);
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [vocalLevel, setVocalLevel] = useState<'soft' | 'balanced' | 'loud'>('balanced');
   const [style, setStyle] = useState<'studio' | 'live' | 'lofi' | 'reverb'>('studio');
@@ -41,7 +43,8 @@ export default function CreateScreen() {
   }, [params.trackId, selectedTrack]);
 
   const outOfQuota = quotaRemaining <= 0; // Infinity for unlimited; finite for free + plan caps
-  const canSubmit = !!voiceId && !!selectedTrack && !outOfQuota && !submitting;
+  const canSubmit =
+    !!voiceId && (!duet || !!voiceId2) && !!selectedTrack && !outOfQuota && !submitting;
 
   const pickTrack = async (track: Track) => {
     // Ensure we have the stream URL (search results already include it; resolve if missing).
@@ -66,6 +69,7 @@ export default function CreateScreen() {
         gender,
         vocalLevel,
         style,
+        duet ? voiceId2 : null,
       );
       const voiceName = readyProfiles.find((v) => v.id === voiceId)?.name ?? 'My voice';
       router.push({
@@ -138,6 +142,45 @@ export default function CreateScreen() {
             <Text variant="label">New</Text>
           </Pressable>
         </View>
+      )}
+
+      {/* Duet — a 2nd voice sings the female-pitched parts (boy + girl on one song) */}
+      {readyProfiles.length > 0 && (
+        <>
+          <Pressable
+            onPress={() => setDuet((d) => !d)}
+            style={[styles.voiceChip, duet && styles.voiceChipActive, styles.duetToggle]}
+          >
+            <Ionicons name={duet ? 'people' : 'people-outline'} size={18} color={duet ? palette.violet : palette.textMuted} />
+            <Text variant="label" color={duet ? palette.textPrimary : palette.textSecondary}>
+              Duet · two voices
+            </Text>
+          </Pressable>
+          {duet && (
+            <View style={{ marginTop: spacing.md }}>
+              <Text variant="label" color={palette.textSecondary} style={{ marginBottom: spacing.sm }}>
+                2nd voice (sings the female parts) — your 1st voice sings the male parts
+              </Text>
+              <View style={styles.voiceRow}>
+                {readyProfiles.map((vp: VoiceProfileRow) => {
+                  const active = vp.id === voiceId2;
+                  return (
+                    <Pressable
+                      key={vp.id}
+                      onPress={() => setVoiceId2(vp.id)}
+                      style={[styles.voiceChip, active && styles.voiceChipActive]}
+                    >
+                      <Ionicons name="person-circle" size={20} color={active ? palette.violet : palette.textMuted} />
+                      <Text variant="label" color={active ? palette.textPrimary : palette.textSecondary}>
+                        {vp.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+        </>
       )}
 
       {/* Your voice type → pitches the cover to your register (so a male voice isn't girly) */}
@@ -288,6 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   voiceChipActive: { borderColor: palette.violet, backgroundColor: palette.surfaceHover },
+  duetToggle: { alignSelf: 'flex-start', marginTop: spacing.md },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -14,6 +14,7 @@ def build_clone_job_payload(
     user_gender: str | None = None,
     vocal_level: str | None = None,
     style: str | None = None,
+    voice_ref_get_url_2: str | None = None,
 ) -> dict:
     inputs = {
         "song_url": song_stream_url,
@@ -22,6 +23,9 @@ def build_clone_job_payload(
     # Pro Voice: a fine-tuned checkpoint the worker loads for a higher-fidelity clone.
     if voice_model_get_url:
         inputs["model_url"] = voice_model_get_url
+    # Duet: a second voice — female-pitched parts are sung by this voice.
+    if voice_ref_get_url_2:
+        inputs["voice_ref_url_2"] = voice_ref_get_url_2
     return {
         "job_id": job_id,
         "kind": "clone_sing",

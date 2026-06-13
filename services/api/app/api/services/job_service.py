@@ -98,6 +98,12 @@ async def create_job(
     model_url = None
     if vp.get("tier") == "pro" and vp.get("training_status") == "ready" and vp.get("model_key"):
         model_url = s3.presign_get(vp["model_key"], config.presign_get_ttl)
+    # Duet: a 2nd voice for the female-pitched parts. Must belong to the user and be ready.
+    voice_url_2 = None
+    if req.voice_profile_id_2:
+        vp2 = await supabase.select_one("voice_profiles", {"id": req.voice_profile_id_2})
+        if vp2 and vp2["user_id"] == user_id and vp2["status"] == VoiceStatus.READY.value:
+            voice_url_2 = await supabase.create_signed_url("voices", vp2["ref_audio_key"], config.presign_get_ttl)
     payload = build_clone_job_payload(
         job_id=job_id,
         watermark=not is_premium,
@@ -110,6 +116,7 @@ async def create_job(
         user_gender=req.gender,
         vocal_level=req.vocal_level,
         style=req.style,
+        voice_ref_get_url_2=voice_url_2,
     )
     # Runpod has no webhook HMAC; we authenticate via a secret token in the callback URL.
     webhook_url = f"{config.api_base_url}/webhooks/runpod?token={config.runpod_webhook_secret}"

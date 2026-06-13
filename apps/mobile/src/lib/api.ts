@@ -121,6 +121,7 @@ export const api = {
     gender?: 'male' | 'female' | null,
     vocalLevel?: 'soft' | 'balanced' | 'loud',
     style?: 'studio' | 'live' | 'lofi' | 'reverb',
+    voiceProfileId2?: string | null,
   ) => {
     if (SIMULATE_JOBS) {
       // Real Supabase but simulated GPU: still enforce + decrement the daily quota via the
@@ -163,6 +164,7 @@ export const api = {
         gender,
         vocal_level: vocalLevel,
         style,
+        voice_profile_id_2: voiceProfileId2,
       },
     });
   },

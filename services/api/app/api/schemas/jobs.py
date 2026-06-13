@@ -8,6 +8,7 @@ class CreateJobRequest(ApiModel):
     gender: str | None = None  # 'male' | 'female' — pitch the vocal to the user's register
     vocal_level: str | None = None  # 'soft' | 'balanced' | 'loud' — voice-vs-music balance
     style: str | None = None  # 'studio' | 'live' | 'lofi' | 'reverb' — vocal vibe preset
+    voice_profile_id_2: str | None = None  # duet: 2nd voice (female-pitched parts use this)
 
 
 class JobResponse(ApiModel):

@@ -15,7 +15,7 @@ import runpod
 from config import config
 from pipeline.convert import convert_voice
 from pipeline.finetune import finetune_voice
-from pipeline.gender import estimate_gender, selective_convert
+from pipeline.gender import dual_voice_blend, estimate_gender, selective_convert
 from pipeline.io import download, upload_put
 from pipeline.mix import probe_duration_ms, remix
 from pipeline.separate import separate_stems
@@ -62,29 +62,42 @@ def handler(event: dict) -> dict:
         log.info("job %s: separating stems (demucs)", job_id)
         vocals, instrumental = separate_stems(song, workdir)
 
-        log.info("job %s: converting voice (seed-vc, gender=%s)", job_id, inp.get("user_gender"))
-        converted = convert_voice(
-            vocals, voice_ref, workdir,
-            checkpoint=checkpoint, model_config=model_config,
-            user_gender=inp.get("user_gender"),
-        )
-
-        # Selective gender: keep the OTHER gender's vocal original; only sing the user's
-        # parts. Fail-safe — on any issue we keep the fully-converted vocal.
-        if config.selective_gender:
+        duet_ref_url = inputs.get("voice_ref_url_2")
+        if duet_ref_url:
+            # DUET: voice A sings the male-pitched parts, voice B the female-pitched parts.
+            log.info("job %s: DUET — converting with two voices", job_id)
+            ref2 = download(duet_ref_url, f"{workdir}/voice_ref_2.m4a")
+            conv_a = convert_voice(vocals, voice_ref, os.path.join(workdir, "a"))
+            conv_b = convert_voice(vocals, ref2, os.path.join(workdir, "b"))
             try:
-                # Prefer the user's Male/Female selection; fall back to detecting it from the
-                # cleaned reference WAV that convert_voice() writes.
-                ug = inp.get("user_gender")
-                if ug not in ("male", "female"):
-                    clean_ref = os.path.join(workdir, "voice_ref_clean.wav")
-                    ug = estimate_gender(clean_ref if os.path.exists(clean_ref) else voice_ref)
-                if ug in ("male", "female"):
-                    blended = os.path.join(workdir, "converted_selective.wav")
-                    converted = selective_convert(vocals, converted, ug, blended)
-                    log.info("job %s: selective gender (user=%s) — opposite-gender parts kept original", job_id, ug)
-            except Exception as exc:  # noqa: BLE001 — never fail a cover over this
-                log.warning("job %s: selective gender skipped (%s)", job_id, exc)
+                converted = dual_voice_blend(conv_a, conv_b, vocals, os.path.join(workdir, "duet.wav"))
+            except Exception as exc:  # noqa: BLE001 — fall back to voice A on blend failure
+                log.warning("job %s: duet blend failed (%s) — using voice A", job_id, exc)
+                converted = conv_a
+        else:
+            log.info("job %s: converting voice (seed-vc, gender=%s)", job_id, inp.get("user_gender"))
+            converted = convert_voice(
+                vocals, voice_ref, workdir,
+                checkpoint=checkpoint, model_config=model_config,
+                user_gender=inp.get("user_gender"),
+            )
+
+            # Selective gender: keep the OTHER gender's vocal original; only sing the user's
+            # parts. Fail-safe — on any issue we keep the fully-converted vocal.
+            if config.selective_gender:
+                try:
+                    # Prefer the user's Male/Female selection; fall back to detecting it from
+                    # the cleaned reference WAV that convert_voice() writes.
+                    ug = inp.get("user_gender")
+                    if ug not in ("male", "female"):
+                        clean_ref = os.path.join(workdir, "voice_ref_clean.wav")
+                        ug = estimate_gender(clean_ref if os.path.exists(clean_ref) else voice_ref)
+                    if ug in ("male", "female"):
+                        blended = os.path.join(workdir, "converted_selective.wav")
+                        converted = selective_convert(vocals, converted, ug, blended)
+                        log.info("job %s: selective gender (user=%s) — opposite-gender parts kept original", job_id, ug)
+                except Exception as exc:  # noqa: BLE001 — never fail a cover over this
+                    log.warning("job %s: selective gender skipped (%s)", job_id, exc)
 
         log.info("job %s: remixing (ffmpeg, watermark=%s preview=%s)", job_id, watermark, preview)
         cover = remix(
