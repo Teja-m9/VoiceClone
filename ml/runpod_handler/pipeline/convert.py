@@ -27,7 +27,9 @@ def _clean_reference(voice_ref: str, workdir: str) -> str:
     - dynaudnorm gentle: even out level without pumping
     No lowpass (keep brightness), no noise gate (keeps natural texture/breath)."""
     cleaned = os.path.join(workdir, "voice_ref_clean.wav")
-    flt = "highpass=f=60,afftdn=nr=12,dynaudnorm=f=400:g=3"
+    # Balanced clean: rumble cut + moderate FFT denoise (nr=16 — cleaner than nr=12 but well
+    # below the nr=30+gate that mangled the voice) + gentle level. No lowpass, no gate.
+    flt = "highpass=f=60,afftdn=nr=16,dynaudnorm=f=400:g=3"
     proc = subprocess.run(
         ["ffmpeg", "-y", "-i", voice_ref, "-af", flt, "-ar", "22050", "-ac", "1", cleaned],
         capture_output=True, text=True,
