@@ -76,7 +76,9 @@ def selective_convert(original_vocal: str, converted_vocal: str, user_gender: st
     mask = np.repeat(frame, HOP)[:n]
     if mask.size < n:
         mask = np.pad(mask, (0, n - mask.size), constant_values=1.0)
-    win = max(1, int(sr * 0.04))
+    # ~90ms smoothing → no rapid flicker between the original singer and the user's voice on
+    # borderline notes (cleaner, seamless transitions).
+    win = max(1, int(sr * 0.09))
     mask = np.convolve(mask, np.ones(win, dtype=np.float32) / win, mode="same")
     mask = np.clip(mask, 0.0, 1.0)
 
