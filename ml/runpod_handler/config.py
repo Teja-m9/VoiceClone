@@ -11,11 +11,11 @@ class Config(BaseSettings):
     # htdemucs_ft = the fine-tuned, higher-quality separation model (cleaner instrumental /
     # less bleed in the background & music). Slower than plain htdemucs but better output.
     demucs_model: str = "htdemucs_ft"
-    # Selective gender OFF → FULL conversion: the user's voice sings the WHOLE lead vocal,
-    # every time. Selective kept producing "the original song" whenever the song's gender
-    # didn't match the user's (or detection was off), which was the recurring complaint.
-    # Full conversion guarantees the user's voice is always in the cover.
-    selective_gender: bool = False
+    # Selective gender ON: use the user's Male/Female tag → convert ONLY their-gender parts
+    # of the lead vocal into their voice; the opposite-gender voice + backing stay the
+    # ORIGINAL singer; the instrumental is untouched; all mixed clean at the end.
+    # Caveat: a song with ONLY the opposite gender has nothing to convert → stays original.
+    selective_gender: bool = True
 
     # Pro Voice fine-tuning (see docs/PRO_VOICE.md). Validate against the seed-vc repo.
     # Use the f0 (singing) config so a fine-tuned model matches the cover path (f0-condition).
