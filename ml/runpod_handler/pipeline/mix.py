@@ -17,10 +17,10 @@ VOCAL_LEVELS = {"soft": "-19", "balanced": "-16", "loud": "-12"}
 
 # Style presets — each sets the vocal's TONE EQ and its reverb/space.
 STYLES = {
-    # clean, present, modern — a touch of plate room
+    # clean, present, modern — a subtle single-tap room (no muddy double-echo)
     "studio": {
         "tone": "equalizer=f=250:width_type=o:w=1:g=-2,equalizer=f=3000:width_type=o:w=1:g=2,treble=g=2:f=9000",
-        "space": "aecho=0.8:0.9:45|110:0.18|0.12",
+        "space": "aecho=0.85:0.88:40:0.1",
     },
     # bigger hall / concert ambience
     "live": {
@@ -65,7 +65,9 @@ def remix(
     # Vocal chain: gentle denoise → rumble cut → style TONE EQ → level (user's balance) →
     # soft compress → smooth → style SPACE (reverb).
     balance = (
-        "[0:a]afftdn=nr=12:nf=-30,highpass=f=70,"
+        # nr=16 cleans the separated-vocal artifacts (esp. the original parts kept in
+        # selective mode); highpass clears rumble.
+        "[0:a]afftdn=nr=16:nf=-28,highpass=f=70,"
         f"{preset['tone']},"
         f"loudnorm=I={vlufs}:TP=-1.5,"
         "acompressor=threshold=-20dB:ratio=3:attack=20:release=250:makeup=2,"
@@ -74,8 +76,8 @@ def remix(
         f"[1:a]loudnorm=I={INSTRUMENTAL_LUFS}:TP=-2[m];"
     )
 
-    # Final master: glue the mix and limit peaks so the whole track sounds finished/loud.
-    master = "loudnorm=I=-14:TP=-1.5,alimiter=limit=0.95"
+    # Final master: glue + limit, then a short fade-in to kill any start click/noise.
+    master = "loudnorm=I=-14:TP=-1.5,alimiter=limit=0.95,afade=t=in:st=0:d=0.12"
 
     if watermark:
         # Vocal-over-music balance, then a faint 1kHz attribution tone, then final master.
